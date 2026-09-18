@@ -4,64 +4,51 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chariiptv.domain.Channel
 import com.example.chariiptv.domain.ChannelRepository
+import com.example.chariiptv.domain.RssRepository
+import com.example.chariiptv.util.Constants
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import org.xmlpull.v1.XmlPullParser
-import org.xmlpull.v1.XmlPullParserFactory
-import java.io.InputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import javax.inject.Inject
 
 @HiltViewModel
 class TvViewModel @Inject constructor(
-    private val repository: ChannelRepository
+    private val repository: ChannelRepository,
+    private val rssRepository: RssRepository
 ) : ViewModel() {
 
-    private val _selectedCountryCode = MutableStateFlow("pe")
-    val selectedCountryCode: StateFlow<String> = _selectedCountryCode
-
-    private val _channels = MutableStateFlow<List<Channel>>(emptyList())
-    val channels: StateFlow<List<Channel>> = _channels
-
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading
-    
-    private val _currentChannel = MutableStateFlow<Channel?>(null)
-    val currentChannel: StateFlow<Channel?> = _currentChannel
-
-    val favorites: StateFlow<List<String>> = repository.getFavoritesFlow()
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-
-    private val _rssNews = MutableStateFlow<String>("")
-    val rssNews: StateFlow<String> = _rssNews
+    private val _uiState = MutableStateFlow(TvUiState())
+    val uiState: StateFlow<TvUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {
-            favorites.collect { favs ->
-                if (_selectedCountryCode.value == "fav") {
-                    _channels.value = repository.getFavoriteChannels(favs)
+            repository.getFavoritesFlow().collect { favs ->
+                _uiState.update { it.copy(favorites = favs) }
+                if (_uiState.value.selectedCountryCode == "fav") {
+                    val channels = repository.getFavoriteChannels(favs)
+                    _uiState.update { it.copy(channels = channels) }
                 }
             }
         }
         
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             while (true) {
-                try {
-                    val titles = fetchRssFeed("https://qwertyaserty.com/rblog/rss")
+                val result = rssRepository.fetchRssFeed()
+                if (result.isSuccess) {
+                    val titles = result.getOrNull() ?: emptyList()
                     if (titles.isNotEmpty()) {
-                        val separator = "   ★   www.qwertyaserty.com   ★   "
-                        _rssNews.value = titles.joinToString(separator) { it } + separator
+                        val formattedNews = titles.joinToString(Constants.RSS_SEPARATOR) { it } + Constants.RSS_SEPARATOR
+                        _uiState.update { it.copy(rssNews = formattedNews) }
                     }
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                } else {
+                    // Log error if needed, avoiding raw exception swallow
+                    // Timber.e(result.exceptionOrNull())
                 }
                 delay(60 * 60 * 1000L) // 1 hour delay
             }
@@ -71,23 +58,26 @@ class TvViewModel @Inject constructor(
     }
 
     fun selectCountry(countryCode: String, forceRefresh: Boolean = false) {
-        if (!forceRefresh && _selectedCountryCode.value == countryCode && _channels.value.isNotEmpty()) {
+        if (!forceRefresh && _uiState.value.selectedCountryCode == countryCode && _uiState.value.channels.isNotEmpty()) {
             return
         }
-        _selectedCountryCode.value = countryCode
+        _uiState.update { it.copy(selectedCountryCode = countryCode) }
         loadChannels(countryCode, forceRefresh)
     }
 
     private fun loadChannels(countryCode: String, forceRefresh: Boolean = false) {
         viewModelScope.launch {
-            _isLoading.value = true
-            _channels.value = emptyList() // Always clear when loading
-            if (countryCode == "fav") {
-                _channels.value = repository.getFavoriteChannels(favorites.value)
-            } else {
-                _channels.value = repository.getChannelsByCountry(countryCode, forceRefresh)
+            _uiState.update { it.copy(isLoading = true, channels = emptyList(), errorMessage = null) }
+            try {
+                val channels = if (countryCode == "fav") {
+                    repository.getFavoriteChannels(_uiState.value.favorites)
+                } else {
+                    repository.getChannelsByCountry(countryCode, forceRefresh)
+                }
+                _uiState.update { it.copy(isLoading = false, channels = channels) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Error loading channels") }
             }
-            _isLoading.value = false
         }
     }
 
@@ -98,51 +88,11 @@ class TvViewModel @Inject constructor(
     }
     
     fun playChannel(channel: Channel?) {
-        _currentChannel.value = channel
+        _uiState.update { it.copy(currentChannel = channel) }
     }
-
-    private fun fetchRssFeed(urlString: String): List<String> {
-        val titles = mutableListOf<String>()
-        var urlConnection: HttpURLConnection? = null
-        try {
-            val url = URL(urlString)
-            urlConnection = url.openConnection() as HttpURLConnection
-            urlConnection.connectTimeout = 10000
-            urlConnection.readTimeout = 10000
-            
-            val inputStream: InputStream = urlConnection.inputStream
-            val textContent = inputStream.bufferedReader().use { it.readText() }.trimStart()
-            
-            val factory = XmlPullParserFactory.newInstance()
-            factory.isNamespaceAware = false
-            val parser = factory.newPullParser()
-            parser.setInput(java.io.StringReader(textContent))
-
-            var eventType = parser.eventType
-            var isInsideItem = false
-            
-            while (eventType != XmlPullParser.END_DOCUMENT && titles.size < 5) {
-                val tagName = parser.name
-                when (eventType) {
-                    XmlPullParser.START_TAG -> {
-                        if (tagName.equals("item", ignoreCase = true)) {
-                            isInsideItem = true
-                        } else if (tagName.equals("title", ignoreCase = true) && isInsideItem) {
-                            val titleText = parser.nextText()
-                            titles.add(titleText.trim())
-                        }
-                    }
-                    XmlPullParser.END_TAG -> {
-                        if (tagName.equals("item", ignoreCase = true)) {
-                            isInsideItem = false
-                        }
-                    }
-                }
-                eventType = parser.next()
-            }
-        } finally {
-            urlConnection?.disconnect()
-        }
-        return titles
+    
+    fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
     }
 }
+

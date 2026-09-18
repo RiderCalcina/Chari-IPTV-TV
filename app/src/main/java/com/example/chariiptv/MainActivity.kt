@@ -17,15 +17,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -48,6 +48,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.tv.material3.Border
+import androidx.tv.material3.Button
+import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
@@ -59,17 +61,15 @@ import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import com.example.chariiptv.domain.Channel
 import com.example.chariiptv.presentation.TvViewModel
+import com.example.chariiptv.theme.TVDROIDTheme
+import com.example.chariiptv.theme.TvPrimary
+import com.example.chariiptv.theme.TvPrimaryFocused
+import com.example.chariiptv.theme.TvSurface
+import com.example.chariiptv.theme.TvSurfaceFocused
+import com.example.chariiptv.theme.TvBackground
+import com.example.chariiptv.util.Constants
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
-
-val SUPPORTED_COUNTRIES = mapOf(
-    "fav" to "Favoritos",
-    "ar" to "Argentina", "bo" to "Bolivia", "cl" to "Chile", "co" to "Colombia",
-    "cr" to "Costa Rica", "cu" to "Cuba", "do" to "Rep. Dominicana", "ec" to "Ecuador",
-    "es" to "España", "gt" to "Guatemala", "hn" to "Honduras", "mx" to "México",
-    "ni" to "Nicaragua", "pa" to "Panamá", "pe" to "Perú", "pr" to "Puerto Rico",
-    "py" to "Paraguay", "sv" to "El Salvador", "uy" to "Uruguay", "ve" to "Venezuela"
-)
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -80,35 +80,96 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            val viewModel: TvViewModel = hiltViewModel()
-            val channels by viewModel.channels.collectAsState()
-            val favorites by viewModel.favorites.collectAsState()
-            val isLoading by viewModel.isLoading.collectAsState()
-            val currentChannel by viewModel.currentChannel.collectAsState()
-            val selectedCountryCode by viewModel.selectedCountryCode.collectAsState()
-            val rssNews by viewModel.rssNews.collectAsState()
-
-            Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0F172A))) {
-                ChannelGrid(
-                    selectedCountryCode = selectedCountryCode,
-                    rssNews = rssNews,
-                    onCountrySelected = { code, forceRefresh -> viewModel.selectCountry(code, forceRefresh) },
-                    channels = channels,
-                    favorites = favorites,
-                    isLoading = isLoading,
-                    onChannelClick = { viewModel.playChannel(it) },
-                    onToggleFavorite = { viewModel.toggleFavorite(it) }
-                )
-
-                if (currentChannel != null) {
-                    BackHandler {
-                        viewModel.playChannel(null)
+            TVDROIDTheme {
+                val viewModel: TvViewModel = hiltViewModel()
+                val uiState by viewModel.uiState.collectAsState()
+                
+                var notificationMessage by remember { mutableStateOf<String?>(null) }
+                
+                LaunchedEffect(notificationMessage) {
+                    if (notificationMessage != null) {
+                        delay(2500)
+                        notificationMessage = null
                     }
-                    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-                        ExoPlayerView(
-                            channel = currentChannel!!,
-                            isFavorite = favorites.contains(currentChannel!!.url),
-                            onToggleFavorite = { viewModel.toggleFavorite(currentChannel!!) }
+                }
+                
+                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                    ChannelGrid(
+                        selectedCountryCode = uiState.selectedCountryCode,
+                        rssNews = uiState.rssNews,
+                        onCountrySelected = { code, forceRefresh -> viewModel.selectCountry(code, forceRefresh) },
+                        channels = uiState.channels,
+                        favorites = uiState.favorites,
+                        isLoading = uiState.isLoading,
+                        onChannelClick = { viewModel.playChannel(it) },
+                        onToggleFavorite = { 
+                            viewModel.toggleFavorite(it) 
+                            notificationMessage = if (uiState.favorites.contains(it.url)) {
+                                getString(R.string.removed_from_favorites)
+                            } else {
+                                getString(R.string.added_to_favorites)
+                            }
+                        }
+                    )
+
+                    if (uiState.currentChannel != null) {
+                        BackHandler {
+                            viewModel.playChannel(null)
+                        }
+                        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+                            ExoPlayerView(
+                                channel = uiState.currentChannel!!,
+                                isFavorite = uiState.favorites.contains(uiState.currentChannel!!.url),
+                                onToggleFavorite = { 
+                                    viewModel.toggleFavorite(uiState.currentChannel!!)
+                                    notificationMessage = if (uiState.favorites.contains(uiState.currentChannel!!.url)) {
+                                        getString(R.string.removed_from_favorites)
+                                    } else {
+                                        getString(R.string.added_to_favorites)
+                                    }
+                                },
+                                onError = {
+                                    notificationMessage = getString(R.string.playback_error)
+                                }
+                            )
+                        }
+                    }
+                    
+                    // Custom TV Snackbar Notification
+                    AnimatedVisibility(
+                        visible = notificationMessage != null,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(TvSurfaceFocused.copy(alpha = 0.9f))
+                                .padding(horizontal = 24.dp, vertical = 12.dp)
+                        ) {
+                            Text(
+                                text = notificationMessage ?: "",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    
+                    if (uiState.errorMessage != null) {
+                        AlertDialog(
+                            onDismissRequest = { viewModel.clearError() },
+                            title = { androidx.compose.material3.Text("Error", color = Color.White) },
+                            text = { androidx.compose.material3.Text(uiState.errorMessage!!, color = Color.LightGray) },
+                            containerColor = TvSurface,
+                            confirmButton = {
+                                Button(
+                                    onClick = { viewModel.clearError() },
+                                    colors = ButtonDefaults.colors(containerColor = TvPrimary)
+                                ) {
+                                    Text("Aceptar", color = Color.White)
+                                }
+                            }
                         )
                     }
                 }
@@ -133,7 +194,7 @@ fun ChannelGrid(
     val countryRowState = rememberLazyListState()
     val firstItemFocusRequester = remember { FocusRequester() }
     val selectedCountryFocusRequester = remember { FocusRequester() }
-    val countryKeys = SUPPORTED_COUNTRIES.keys.toList()
+    val countryKeys = Constants.SUPPORTED_COUNTRIES.keys.toList()
     var countryToRefresh by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(selectedCountryCode) {
@@ -159,7 +220,7 @@ fun ChannelGrid(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(countryKeys) { code ->
-                val name = SUPPORTED_COUNTRIES[code]!!
+                val name = Constants.SUPPORTED_COUNTRIES[code]!!
                 val isSelected = code == selectedCountryCode
                 Surface(
                     onClick = { 
@@ -171,8 +232,8 @@ fun ChannelGrid(
                     },
                     shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(16.dp)),
                     colors = ClickableSurfaceDefaults.colors(
-                        containerColor = if (isSelected) Color(0xFF3B82F6) else Color(0xFF1E293B),
-                        focusedContainerColor = Color(0xFF60A5FA)
+                        containerColor = if (isSelected) TvPrimary else TvSurface,
+                        focusedContainerColor = TvPrimaryFocused
                     ),
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
                         .then(if (isSelected) Modifier.focusRequester(selectedCountryFocusRequester) else Modifier)
@@ -193,7 +254,7 @@ fun ChannelGrid(
                     CircularProgressIndicator(color = Color.White)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Buscando canales de ${SUPPORTED_COUNTRIES[selectedCountryCode]}...",
+                        text = stringResource(R.string.searching_channels, Constants.SUPPORTED_COUNTRIES[selectedCountryCode] ?: ""),
                         color = Color.White,
                         fontSize = 18.sp
                     )
@@ -205,7 +266,7 @@ fun ChannelGrid(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${channels.size} canales activos en ${SUPPORTED_COUNTRIES[selectedCountryCode]}", 
+                    text = stringResource(R.string.active_channels, channels.size, Constants.SUPPORTED_COUNTRIES[selectedCountryCode] ?: ""), 
                     color = Color.Gray, 
                     fontSize = 11.sp
                 )
@@ -239,8 +300,8 @@ fun ChannelGrid(
                             focusedBorder = Border(BorderStroke(4.dp, Color.White))
                         ),
                         colors = ClickableSurfaceDefaults.colors(
-                            containerColor = Color(0xFF1E293B),
-                            focusedContainerColor = Color(0xFF334155)
+                            containerColor = TvSurface,
+                            focusedContainerColor = TvSurfaceFocused
                         ),
                         modifier = Modifier.fillMaxWidth().aspectRatio(16f/11f)
                             .then(if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier)
@@ -302,30 +363,30 @@ fun ChannelGrid(
         }
         
         if (countryToRefresh != null) {
-            val countryName = SUPPORTED_COUNTRIES[countryToRefresh] ?: ""
+            val countryName = Constants.SUPPORTED_COUNTRIES[countryToRefresh] ?: ""
             AlertDialog(
                 onDismissRequest = { countryToRefresh = null },
                 properties = androidx.compose.ui.window.DialogProperties(dismissOnClickOutside = false),
-                title = { androidx.compose.material3.Text("Escanear Canales", color = Color.White) },
-                text = { androidx.compose.material3.Text("¿Deseas volver a escanear los canales de $countryName? Esto actualizará la lista desde el servidor.", color = Color.LightGray) },
-                containerColor = Color(0xFF1E293B),
+                title = { androidx.compose.material3.Text(stringResource(R.string.scan_channels_title), color = Color.White) },
+                text = { androidx.compose.material3.Text(stringResource(R.string.scan_channels_desc, countryName), color = Color.LightGray) },
+                containerColor = TvSurface,
                 confirmButton = {
                     Button(
                         onClick = {
                             onCountrySelected(countryToRefresh!!, true)
                             countryToRefresh = null
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
+                        colors = ButtonDefaults.colors(containerColor = TvPrimary)
                     ) {
-                        androidx.compose.material3.Text("Escanear", color = Color.White)
+                        Text(stringResource(R.string.scan), color = Color.White)
                     }
                 },
                 dismissButton = {
                     Button(
                         onClick = { countryToRefresh = null },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF334155))
+                        colors = ButtonDefaults.colors(containerColor = TvSurfaceFocused)
                     ) {
-                        androidx.compose.material3.Text("Cancelar", color = Color.White)
+                        Text(stringResource(R.string.cancel), color = Color.White)
                     }
                 }
             )
@@ -337,7 +398,8 @@ fun ChannelGrid(
 fun ExoPlayerView(
     channel: Channel,
     isFavorite: Boolean,
-    onToggleFavorite: () -> Unit
+    onToggleFavorite: () -> Unit,
+    onError: () -> Unit
 ) {
     var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -377,11 +439,7 @@ fun ExoPlayerView(
                         it.addListener(object : Player.Listener {
                             override fun onPlayerError(error: PlaybackException) {
                                 super.onPlayerError(error)
-                                android.widget.Toast.makeText(
-                                    context,
-                                    "Error al reproducir el canal (Puede estar caído o geobloqueado)",
-                                    android.widget.Toast.LENGTH_LONG
-                                ).show()
+                                onError()
                             }
                         })
                     }
@@ -392,8 +450,6 @@ fun ExoPlayerView(
                 view.setOnKeyListener { _, keyCode, event ->
                     if (keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP && event.action == android.view.KeyEvent.ACTION_UP) {
                         onToggleFavorite()
-                        val msg = if (isFavorite) "Eliminado de Favoritos" else "Añadido a Favoritos"
-                        android.widget.Toast.makeText(view.context, msg, android.widget.Toast.LENGTH_SHORT).show()
                         true
                     } else {
                         false

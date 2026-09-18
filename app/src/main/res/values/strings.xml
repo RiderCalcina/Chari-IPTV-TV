@@ -1,3 +1,12 @@
 <resources>
     <string name="app_name">Chari-IPTV</string>
+    <string name="searching_channels">Buscando canales de %1$s...</string>
+    <string name="active_channels">%1$d canales activos en %2$s</string>
+    <string name="scan_channels_title">Escanear Canales</string>
+    <string name="scan_channels_desc">¿Deseas volver a escanear los canales de %1$s? Esto actualizará la lista desde el servidor.</string>
+    <string name="scan">Escanear</string>
+    <string name="cancel">Cancelar</string>
+    <string name="playback_error">Error al reproducir el canal (Puede estar caído o geobloqueado)</string>
+    <string name="added_to_favorites">Añadido a Favoritos</string>
+    <string name="removed_from_favorites">Eliminado de Favoritos</string>
 </resources>

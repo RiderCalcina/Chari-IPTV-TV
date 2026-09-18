@@ -85,4 +85,9 @@ object AppModule {
     fun provideCachedChannelDao(database: AppDatabase): CachedChannelDao {
         return database.cachedChannelDao()
     }
+    @Provides
+    @Singleton
+    fun provideRssRepository(okHttpClient: OkHttpClient): com.example.chariiptv.domain.RssRepository {
+        return com.example.chariiptv.domain.RssRepositoryImpl(okHttpClient)
+    }
 }
