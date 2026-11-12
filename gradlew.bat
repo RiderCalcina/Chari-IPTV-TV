@@ -17,6 +17,7 @@ set APP_HOME=%DIRNAME%
 set DEFAULT_JVM_OPTS=
 
 @rem Find java.exe
+if not defined JAVA_HOME for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v JAVA_HOME 2^>nul') do set JAVA_HOME=%%b
 if defined JAVA_HOME goto findJavaFromJavaHome
 
 set JAVA_EXE=java.exe

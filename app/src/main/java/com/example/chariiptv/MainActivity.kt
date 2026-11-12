@@ -5,16 +5,26 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -23,8 +33,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -32,33 +47,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.focusProperties
-import androidx.compose.ui.focus.focusRestorer
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.tv.material3.Border
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
+import coil.request.ImageRequest
+import kotlinx.coroutines.launch
 import com.example.chariiptv.domain.Channel
 import com.example.chariiptv.presentation.TvViewModel
 import com.example.chariiptv.theme.TVDROIDTheme
@@ -66,13 +73,14 @@ import com.example.chariiptv.theme.TvPrimary
 import com.example.chariiptv.theme.TvPrimaryFocused
 import com.example.chariiptv.theme.TvSurface
 import com.example.chariiptv.theme.TvSurfaceFocused
-import com.example.chariiptv.theme.TvBackground
 import com.example.chariiptv.util.Constants
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    private val tvViewModel: TvViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -81,7 +89,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             TVDROIDTheme {
-                val viewModel: TvViewModel = hiltViewModel()
+                val viewModel: TvViewModel = tvViewModel
                 val uiState by viewModel.uiState.collectAsState()
                 
                 var notificationMessage by remember { mutableStateOf<String?>(null) }
@@ -95,8 +103,11 @@ class MainActivity : ComponentActivity() {
                 
                 Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                     ChannelGrid(
+                        selectedFilterId = uiState.selectedFilterId,
                         selectedCountryCode = uiState.selectedCountryCode,
+                        isCountrySubMenuVisible = uiState.isCountrySubMenuVisible,
                         rssNews = uiState.rssNews,
+                        onFilterSelected = { filterId, forceRefresh -> viewModel.selectFilter(filterId, forceRefresh) },
                         onCountrySelected = { code, forceRefresh -> viewModel.selectCountry(code, forceRefresh) },
                         channels = uiState.channels,
                         favorites = uiState.favorites,
@@ -105,9 +116,9 @@ class MainActivity : ComponentActivity() {
                         onToggleFavorite = { 
                             viewModel.toggleFavorite(it) 
                             notificationMessage = if (uiState.favorites.contains(it.url)) {
-                                getString(R.string.removed_from_favorites)
+                                "🤍 Eliminado de favoritos"
                             } else {
-                                getString(R.string.added_to_favorites)
+                                "❤️ Añadido a favoritos"
                             }
                         }
                     )
@@ -123,13 +134,13 @@ class MainActivity : ComponentActivity() {
                                 onToggleFavorite = { 
                                     viewModel.toggleFavorite(uiState.currentChannel!!)
                                     notificationMessage = if (uiState.favorites.contains(uiState.currentChannel!!.url)) {
-                                        getString(R.string.removed_from_favorites)
+                                        "🤍 Eliminado de favoritos"
                                     } else {
-                                        getString(R.string.added_to_favorites)
+                                        "❤️ Añadido a favoritos"
                                     }
                                 },
-                                onError = {
-                                    notificationMessage = getString(R.string.playback_error)
+                                onClose = {
+                                    viewModel.playChannel(null)
                                 }
                             )
                         }
@@ -176,12 +187,86 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onStop() {
+        super.onStop()
+        // Detener y silenciar inmediatamente la reproducción al salir al menú del TV o segundo plano
+        tvViewModel.playChannel(null)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        tvViewModel.playChannel(null)
+    }
+}
+
+data class MainNavItem(
+    val id: String,
+    val label: String,
+    val icon: String,
+    val isSpecial: Boolean = false
+)
+
+@Composable
+fun FilterCardButton(
+    icon: String,
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isSpecialYellow: Boolean = false,
+    focusRequester: FocusRequester? = null
+) {
+    Surface(
+        onClick = onClick,
+        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(10.dp)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
+        border = ClickableSurfaceDefaults.border(
+            border = Border(
+                BorderStroke(
+                    1.dp,
+                    if (isSpecialYellow) Color(0x66FFEB3B) else if (isSelected) Color(0x553B82F6) else Color(0x22FFFFFF)
+                )
+            ),
+            focusedBorder = Border(
+                BorderStroke(2.dp, if (isSpecialYellow) Color.Yellow else Color.White)
+            )
+        ),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = if (isSelected) TvPrimary else Color(0xFF0F172A),
+            focusedContainerColor = if (isSelected) TvPrimaryFocused else Color(0xFF1E293B)
+        ),
+        modifier = modifier
+            .padding(horizontal = 3.dp, vertical = 4.dp)
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+        ) {
+            androidx.compose.material3.Text(
+                text = icon,
+                fontSize = 15.sp
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = label,
+                color = if (isSpecialYellow) Color.Yellow else if (isSelected) Color.White else Color.LightGray,
+                fontWeight = if (isSelected || isSpecialYellow) FontWeight.Bold else FontWeight.Medium,
+                fontSize = 13.sp
+            )
+        }
+    }
 }
 
 @Composable
 fun ChannelGrid(
+    selectedFilterId: String,
     selectedCountryCode: String,
+    isCountrySubMenuVisible: Boolean,
     rssNews: String,
+    onFilterSelected: (String, Boolean) -> Unit,
     onCountrySelected: (String, Boolean) -> Unit,
     channels: List<Channel>,
     favorites: List<String>,
@@ -191,19 +276,65 @@ fun ChannelGrid(
 ) {
     val sortedChannels = channels.sortedBy { it.name }
     val gridState = rememberLazyGridState()
+    val mainRowState = rememberLazyListState()
     val countryRowState = rememberLazyListState()
     val firstItemFocusRequester = remember { FocusRequester() }
-    val selectedCountryFocusRequester = remember { FocusRequester() }
-    val countryKeys = Constants.SUPPORTED_COUNTRIES.keys.toList()
-    var countryToRefresh by remember { mutableStateOf<String?>(null) }
+    val selectedFilterFocusRequester = remember { FocusRequester() }
+    val coroutineScope = rememberCoroutineScope()
+    
+    val isScrolledDown by remember {
+        derivedStateOf { gridState.firstVisibleItemIndex > 0 }
+    }
 
-    LaunchedEffect(selectedCountryCode) {
-        val index = countryKeys.indexOf(selectedCountryCode)
+    // Al presionar 'Atrás' en el control remoto cuando se ha explorado hacia abajo,
+    // regresa inmediatamente al inicio de la cuadrícula y enfoca las pestañas superiores
+    BackHandler(enabled = isScrolledDown) {
+        coroutineScope.launch {
+            gridState.animateScrollToItem(0)
+            delay(50)
+            try {
+                selectedFilterFocusRequester.requestFocus()
+            } catch (e: Exception) {}
+        }
+    }
+    
+    // Pair(id, isCountry)
+    var itemToRefresh by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
+    var showSupportDialog by remember { mutableStateOf(false) }
+
+    val mainNavItems = remember {
+        listOf(
+            MainNavItem("important", "Importante", "⭐", isSpecial = true),
+            MainNavItem("fav", "Favoritos", "❤️"),
+            MainNavItem("countries", "Países", "🌎"),
+            MainNavItem("sports", "Deportes", "⚽"),
+            MainNavItem("news", "Noticias", "📰"),
+            MainNavItem("movies", "Películas", "🎬"),
+            MainNavItem("series", "Series", "📺"),
+            MainNavItem("animation", "Infantil", "👶"),
+            MainNavItem("music", "Música", "🎵")
+        )
+    }
+
+    val countryKeys = remember { Constants.SUPPORTED_COUNTRIES.keys.filter { it != "fav" } }
+    val selectedCountryFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(selectedFilterId, selectedCountryCode) {
+        val index = mainNavItems.indexOfFirst { it.id == selectedFilterId }
         if (index >= 0) {
-            countryRowState.animateScrollToItem(index)
+            mainRowState.animateScrollToItem(index)
         }
         
-        if (sortedChannels.isNotEmpty()) {
+        if (selectedFilterId == "countries") {
+            val countryIndex = countryKeys.indexOf(selectedCountryCode)
+            if (countryIndex >= 0) {
+                countryRowState.animateScrollToItem(countryIndex)
+            }
+            delay(120)
+            try {
+                selectedCountryFocusRequester.requestFocus()
+            } catch (e: Exception) {}
+        } else if (sortedChannels.isNotEmpty()) {
             gridState.scrollToItem(0)
             delay(100)
             try {
@@ -212,38 +343,114 @@ fun ChannelGrid(
         }
     }
 
+    val currentFilterTitle = if (selectedFilterId == "countries") {
+        Constants.SUPPORTED_COUNTRIES[selectedCountryCode] ?: "Países"
+    } else {
+        Constants.getFilterDisplayName(selectedFilterId)
+    }
+
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         
+        // Fila 1: Botones Principales (Importante primero, luego categorías y países)
         LazyRow(
-            state = countryRowState,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).focusRestorer(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            state = mainRowState,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp).focusRestorer(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            items(countryKeys) { code ->
-                val name = Constants.SUPPORTED_COUNTRIES[code]!!
-                val isSelected = code == selectedCountryCode
-                Surface(
-                    onClick = { 
-                        if (code == selectedCountryCode && code != "fav") {
-                            countryToRefresh = code
-                        } else {
-                            onCountrySelected(code, false) 
+            items(mainNavItems) { item ->
+                val isSelected = item.id == selectedFilterId
+                FilterCardButton(
+                    icon = item.icon,
+                    label = item.label,
+                    isSelected = isSelected,
+                    isSpecialYellow = item.isSpecial,
+                    focusRequester = if (isSelected) selectedFilterFocusRequester else null,
+                    onClick = {
+                        when (item.id) {
+                            "important" -> {
+                                showSupportDialog = true
+                            }
+                            "countries" -> {
+                                if (selectedFilterId == "countries") {
+                                    itemToRefresh = Pair(selectedCountryCode, true)
+                                } else {
+                                    onFilterSelected("countries", false)
+                                }
+                            }
+                            else -> {
+                                if (isSelected && item.id != "fav") {
+                                    itemToRefresh = Pair(item.id, false)
+                                } else {
+                                    onFilterSelected(item.id, false)
+                                }
+                            }
                         }
-                    },
-                    shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(16.dp)),
-                    colors = ClickableSurfaceDefaults.colors(
-                        containerColor = if (isSelected) TvPrimary else TvSurface,
-                        focusedContainerColor = TvPrimaryFocused
-                    ),
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-                        .then(if (isSelected) Modifier.focusRequester(selectedCountryFocusRequester) else Modifier)
-                ) {
-                    Text(
-                        text = name,
-                        color = if (isSelected) Color.White else Color.LightGray,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
+                    }
+                )
+            }
+        }
+
+        // Fila 2: Sub-selector de Países (visible cuando se selecciona "Países")
+        AnimatedVisibility(
+            visible = isCountrySubMenuVisible || selectedFilterId == "countries",
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            val countryKeys = Constants.SUPPORTED_COUNTRIES.keys.filter { it != "fav" }
+            LazyRow(
+                state = countryRowState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .focusRestorer(),
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                items(countryKeys) { code ->
+                    val name = Constants.SUPPORTED_COUNTRIES[code] ?: code
+                    val flag = Constants.COUNTRY_FLAGS[code] ?: "🌐"
+                    val isCountryActive = code == selectedCountryCode
+                    
+                    Surface(
+                        onClick = {
+                            if (isCountryActive) {
+                                itemToRefresh = Pair(code, true)
+                            } else {
+                                onCountrySelected(code, false)
+                            }
+                        },
+                        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
+                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.06f),
+                        border = ClickableSurfaceDefaults.border(
+                            border = Border(
+                                BorderStroke(
+                                    1.dp,
+                                    if (isCountryActive) Color(0x663B82F6) else Color(0x1FFFFFFF)
+                                )
+                            ),
+                            focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                        ),
+                        colors = ClickableSurfaceDefaults.colors(
+                            containerColor = if (isCountryActive) TvPrimary else Color(0xFF0F172A),
+                            focusedContainerColor = TvPrimaryFocused
+                        ),
+                        modifier = Modifier
+                            .padding(horizontal = 2.dp, vertical = 2.dp)
+                            .then(if (isCountryActive) Modifier.focusRequester(selectedCountryFocusRequester) else Modifier)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            androidx.compose.material3.Text(text = flag, fontSize = 13.sp)
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = name,
+                                color = if (isCountryActive) Color.White else Color.LightGray,
+                                fontWeight = if (isCountryActive) FontWeight.Bold else FontWeight.Normal,
+                                fontSize = 11.5.sp
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -254,7 +461,7 @@ fun ChannelGrid(
                     CircularProgressIndicator(color = Color.White)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = stringResource(R.string.searching_channels, Constants.SUPPORTED_COUNTRIES[selectedCountryCode] ?: ""),
+                        text = stringResource(R.string.searching_channels, currentFilterTitle),
                         color = Color.White,
                         fontSize = 18.sp
                     )
@@ -262,14 +469,59 @@ fun ChannelGrid(
             }
         } else {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp, start = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp, horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(R.string.active_channels, channels.size, Constants.SUPPORTED_COUNTRIES[selectedCountryCode] ?: ""), 
+                    text = stringResource(R.string.active_channels, channels.size, currentFilterTitle), 
                     color = Color.Gray, 
                     fontSize = 11.sp
                 )
+                
+                // Botón interactivo y atajo para volver arriba a las pestañas rápidamente
+                AnimatedVisibility(
+                    visible = isScrolledDown,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    Surface(
+                        onClick = {
+                            coroutineScope.launch {
+                                gridState.animateScrollToItem(0)
+                                delay(50)
+                                try {
+                                    selectedFilterFocusRequester.requestFocus()
+                                } catch (e: Exception) {}
+                            }
+                        },
+                        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(12.dp)),
+                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
+                        border = ClickableSurfaceDefaults.border(
+                            border = Border(BorderStroke(1.dp, Color(0x33FFFFFF))),
+                            focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                        ),
+                        colors = ClickableSurfaceDefaults.colors(
+                            containerColor = Color(0xFF1E293B),
+                            focusedContainerColor = TvPrimaryFocused
+                        ),
+                        modifier = Modifier.padding(start = 12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                        ) {
+                            androidx.compose.material3.Text("⬆", fontSize = 11.sp, color = Color.Yellow)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Subir a Pestañas [Atrás]",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+
                 if (rssNews.isNotEmpty()) {
                     androidx.compose.material3.Text(
                         text = rssNews,
@@ -281,6 +533,41 @@ fun ChannelGrid(
                 }
             }
             
+            if (sortedChannels.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(32.dp)
+                    ) {
+                        if (selectedFilterId == "fav") {
+                            androidx.compose.material3.Text("❤️", fontSize = 48.sp)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Aún no tienes canales favoritos",
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Explora las categorías o países y pulsa el corazón ❤️ en cualquier canal para agregarlo aquí.",
+                                color = Color.LightGray,
+                                fontSize = 13.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        } else {
+                            androidx.compose.material3.Text("📡", fontSize = 48.sp)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "No se encontraron canales",
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            } else {
             LazyVerticalGrid(
                 state = gridState,
                 columns = GridCells.Fixed(4),
@@ -312,20 +599,35 @@ fun ChannelGrid(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
-                                if (channel.logo.isNotEmpty()) {
+                                if (channel.logo.isNotBlank()) {
                                     SubcomposeAsyncImage(
-                                        model = channel.logo,
+                                        model = ImageRequest.Builder(LocalContext.current)
+                                            .data(channel.logo)
+                                            .crossfade(true)
+                                            .build(),
                                         contentDescription = channel.name,
                                         modifier = Modifier.weight(1f).fillMaxWidth().padding(bottom = 8.dp),
                                         contentScale = ContentScale.Fit
                                     ) {
                                         val state = painter.state
-                                        if (state is AsyncImagePainter.State.Loading || state is AsyncImagePainter.State.Error) {
-                                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                                androidx.compose.material3.Text("📺", fontSize = 32.sp)
+                                        when (state) {
+                                            is AsyncImagePainter.State.Loading -> {
+                                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(24.dp),
+                                                        color = Color.White.copy(alpha = 0.4f),
+                                                        strokeWidth = 2.dp
+                                                    )
+                                                }
                                             }
-                                        } else {
-                                            SubcomposeAsyncImageContent()
+                                            is AsyncImagePainter.State.Error -> {
+                                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                                    androidx.compose.material3.Text("📺", fontSize = 32.sp)
+                                                }
+                                            }
+                                            else -> {
+                                                SubcomposeAsyncImageContent()
+                                            }
                                         }
                                     }
                                 } else {
@@ -349,6 +651,7 @@ fun ChannelGrid(
                                     .padding(8.dp)
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(Color(0x88000000))
+                                    .clickable { onToggleFavorite(channel) }
                                     .padding(6.dp)
                             ) {
                                 androidx.compose.material3.Text(
@@ -361,20 +664,31 @@ fun ChannelGrid(
                 }
             }
         }
+    }
         
-        if (countryToRefresh != null) {
-            val countryName = Constants.SUPPORTED_COUNTRIES[countryToRefresh] ?: ""
+        if (itemToRefresh != null) {
+            val (refreshId, isCountry) = itemToRefresh!!
+            val itemName = if (isCountry) {
+                Constants.SUPPORTED_COUNTRIES[refreshId] ?: refreshId
+            } else {
+                Constants.getFilterDisplayName(refreshId)
+            }
+            
             AlertDialog(
-                onDismissRequest = { countryToRefresh = null },
+                onDismissRequest = { itemToRefresh = null },
                 properties = androidx.compose.ui.window.DialogProperties(dismissOnClickOutside = false),
                 title = { androidx.compose.material3.Text(stringResource(R.string.scan_channels_title), color = Color.White) },
-                text = { androidx.compose.material3.Text(stringResource(R.string.scan_channels_desc, countryName), color = Color.LightGray) },
-                containerColor = TvSurface,
+                text = { androidx.compose.material3.Text(stringResource(R.string.scan_channels_desc, itemName), color = Color.LightGray) },
+                containerColor = Color(0xFF0F172A),
                 confirmButton = {
                     Button(
                         onClick = {
-                            onCountrySelected(countryToRefresh!!, true)
-                            countryToRefresh = null
+                            itemToRefresh = null
+                            if (isCountry) {
+                                onCountrySelected(refreshId, true)
+                            } else {
+                                onFilterSelected(refreshId, true)
+                            }
                         },
                         colors = ButtonDefaults.colors(containerColor = TvPrimary)
                     ) {
@@ -383,10 +697,298 @@ fun ChannelGrid(
                 },
                 dismissButton = {
                     Button(
-                        onClick = { countryToRefresh = null },
-                        colors = ButtonDefaults.colors(containerColor = TvSurfaceFocused)
+                        onClick = { itemToRefresh = null },
+                        colors = ButtonDefaults.colors(containerColor = Color(0xFF1E293B))
                     ) {
                         Text(stringResource(R.string.cancel), color = Color.White)
+                    }
+                }
+            )
+        }
+
+        if (showSupportDialog) {
+            val closeFocusRequester = remember { FocusRequester() }
+            LaunchedEffect(Unit) {
+                delay(100)
+                try {
+                    closeFocusRequester.requestFocus()
+                } catch (e: Exception) {}
+            }
+
+            AlertDialog(
+                onDismissRequest = { showSupportDialog = false },
+                properties = androidx.compose.ui.window.DialogProperties(
+                    dismissOnClickOutside = true,
+                    usePlatformDefaultWidth = false
+                ),
+                modifier = Modifier
+                    .widthIn(min = 820.dp, max = 960.dp)
+                    .padding(16.dp),
+                shape = RoundedCornerShape(20.dp),
+                containerColor = Color(0xFF090D16),
+                title = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        androidx.compose.material3.Text(
+                            text = "⭐ Información & Apoyo al Proyecto",
+                            color = Color.Yellow,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 20.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF111827))
+                                .border(BorderStroke(1.dp, Color(0x22FFFFFF)), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 16.dp, vertical = 5.dp)
+                        ) {
+                            androidx.compose.material3.Text(
+                                text = "❤️ ¡Muchas gracias por sus donaciones! Esta app es 100% gratuita y de libre acceso.",
+                                color = Color(0xFFE2E8F0),
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp, horizontal = 2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            // Columna 1: Donaciones PayPal
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color(0xFF111827))
+                                    .border(BorderStroke(1.dp, Color(0x28FFFFFF)), RoundedCornerShape(14.dp))
+                                    .padding(horizontal = 10.dp, vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                androidx.compose.material3.Text(
+                                    text = "💳 PayPal",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                                androidx.compose.material3.Text(
+                                    text = "Internacional",
+                                    color = Color(0xFF38BDF8),
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(118.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color.White)
+                                        .padding(5.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.qr_paypal),
+                                        contentDescription = "PayPal QR",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                androidx.compose.material3.Text(
+                                    text = "Donación voluntaria con tarjeta o saldo PayPal.",
+                                    color = Color(0xFFCBD5E1),
+                                    fontSize = 10.5.sp,
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 13.sp
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+                                androidx.compose.material3.Text(
+                                    text = "paypal.com",
+                                    color = Color(0xFF60A5FA),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+
+                            // Columna 2: Donaciones Yape
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color(0xFF111827))
+                                    .border(BorderStroke(1.dp, Color(0x28FFFFFF)), RoundedCornerShape(14.dp))
+                                    .padding(horizontal = 10.dp, vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                androidx.compose.material3.Text(
+                                    text = "📱 Yape",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                                androidx.compose.material3.Text(
+                                    text = "Perú / BCP",
+                                    color = Color(0xFFC084FC),
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(118.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color.White)
+                                        .padding(5.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.qr_yape),
+                                        contentDescription = "Yape QR",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                androidx.compose.material3.Text(
+                                    text = "Escanea directamente desde la app Yape.",
+                                    color = Color(0xFFCBD5E1),
+                                    fontSize = 10.5.sp,
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 13.sp
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+                                androidx.compose.material3.Text(
+                                    text = "Yape (Perú)",
+                                    color = Color(0xFFC084FC),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+
+                            // Columna 3: Visita la Web del Desarrollador
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color(0xFF111827))
+                                    .border(BorderStroke(1.dp, Color(0x28FFFFFF)), RoundedCornerShape(14.dp))
+                                    .padding(horizontal = 10.dp, vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                androidx.compose.material3.Text(
+                                    text = "🌐 Web Oficial",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                                androidx.compose.material3.Text(
+                                    text = "Desarrollador",
+                                    color = Color(0xFF34D399),
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(118.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color.White)
+                                        .padding(5.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.qr_web),
+                                        contentDescription = "Web QR",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                androidx.compose.material3.Text(
+                                    text = "Novedades, reportes y contacto directo.",
+                                    color = Color(0xFFCBD5E1),
+                                    fontSize = 10.5.sp,
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 13.sp
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+                                androidx.compose.material3.Text(
+                                    text = "www.qwertyaserty.com",
+                                    color = Color(0xFF34D399),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF0F172A))
+                                .border(BorderStroke(1.dp, Color(0x22FFFFFF)), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "ℹ️ Aviso legal: Esta aplicación es un reproductor multimedia y no almacena, retransmite ni controla el contenido emitido por cada canal. Todos los enlaces provienen de fuentes públicas y abiertas en internet. El desarrollador no se responsabiliza por la programación, disponibilidad, derechos de autor o contenidos provistos por terceros.",
+                                color = Color(0xFF94A3B8),
+                                fontSize = 9.5.sp,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 13.sp
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Surface(
+                            onClick = { showSupportDialog = false },
+                            shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(20.dp)),
+                            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
+                            border = ClickableSurfaceDefaults.border(
+                                border = Border(BorderStroke(1.dp, Color(0x44FFFFFF))),
+                                focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                            ),
+                            colors = ClickableSurfaceDefaults.colors(
+                                containerColor = Color(0xFF1E293B),
+                                focusedContainerColor = TvPrimaryFocused
+                            ),
+                            modifier = Modifier
+                                .focusRequester(closeFocusRequester)
+                                .padding(vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "Cerrar",
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(horizontal = 30.dp, vertical = 6.dp)
+                            )
+                        }
                     }
                 }
             )
@@ -399,22 +1001,89 @@ fun ExoPlayerView(
     channel: Channel,
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
-    onError: () -> Unit
+    onClose: () -> Unit
 ) {
-    var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
+    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    DisposableEffect(lifecycleOwner) {
+    var isBuffering by remember { mutableStateOf(true) }
+    var isError by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+    var retryCount by remember { mutableStateOf(0) }
+    val retryFocusRequester = remember { FocusRequester() }
+
+    // 1. Instancia unívoca de ExoPlayer memorizada estrictamente por canal y reintentos
+    val exoPlayer = remember(channel.url, retryCount) {
+        ExoPlayer.Builder(context).build().apply {
+            setMediaItem(MediaItem.fromUri(channel.url))
+            prepare()
+            playWhenReady = true
+        }
+    }
+
+    // 2. Liberación garantizada de audio y red al cambiar de canal o desmontar
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                when (playbackState) {
+                    Player.STATE_BUFFERING -> {
+                        isBuffering = true
+                    }
+                    Player.STATE_READY -> {
+                        isBuffering = false
+                        isError = false
+                    }
+                    Player.STATE_ENDED -> {
+                        isBuffering = false
+                    }
+                    Player.STATE_IDLE -> {}
+                }
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                super.onPlayerError(error)
+                isBuffering = false
+                isError = true
+                errorMessage = when (error.errorCode) {
+                    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ->
+                        "No se pudo conectar con el servidor emisor de la señal. Verifica la conexión a internet."
+                    PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ->
+                        "El servidor del canal rechazó la conexión (posible geobloqueo o transmisión fuera de línea)."
+                    PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
+                    PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED ->
+                        "El formato o códec de la transmisión no es compatible con el reproductor."
+                    else ->
+                        "La señal del canal no está disponible en este momento. Puede estar en pausa o fuera de emisión."
+                }
+            }
+        }
+
+        exoPlayer.addListener(listener)
+
+        onDispose {
+            exoPlayer.removeListener(listener)
+            exoPlayer.stop()
+            exoPlayer.clearMediaItems()
+            exoPlayer.release()
+        }
+    }
+
+    // 3. Sincronización con el ciclo de vida de la Actividad (Pausa y Liberación)
+    DisposableEffect(lifecycleOwner, exoPlayer) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
-                    exoPlayer?.pause()
+                    exoPlayer.pause()
                 }
                 Lifecycle.Event.ON_RESUME -> {
-                    exoPlayer?.play()
+                    if (!isError) {
+                        exoPlayer.play()
+                    }
                 }
                 Lifecycle.Event.ON_DESTROY -> {
-                    exoPlayer?.release()
+                    exoPlayer.stop()
+                    exoPlayer.release()
                 }
                 else -> {}
             }
@@ -422,31 +1091,42 @@ fun ExoPlayerView(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            exoPlayer?.release()
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    // Watchdog: detect hanging streams / infinite buffering
+    LaunchedEffect(channel.url, retryCount) {
+        isBuffering = true
+        isError = false
+        errorMessage = ""
+        delay(12_000)
+        if (isBuffering && !isError) {
+            isBuffering = false
+            isError = true
+            errorMessage = "El servidor emisor no respondió en el tiempo establecido. La señal podría estar temporalmente fuera de línea."
+        }
+    }
+
+    LaunchedEffect(isError) {
+        if (isError) {
+            delay(100)
+            try {
+                retryFocusRequester.requestFocus()
+            } catch (e: Exception) {}
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
-            factory = { context ->
-                PlayerView(context).apply {
-                    player = ExoPlayer.Builder(context).build().also {
-                        exoPlayer = it
-                        it.setMediaItem(MediaItem.fromUri(channel.url))
-                        it.prepare()
-                        it.playWhenReady = true
-                        it.addListener(object : Player.Listener {
-                            override fun onPlayerError(error: PlaybackException) {
-                                super.onPlayerError(error)
-                                onError()
-                            }
-                        })
-                    }
-                    useController = true 
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    player = exoPlayer
+                    useController = true
                 }
             },
             update = { view ->
+                view.player = exoPlayer
                 view.setOnKeyListener { _, keyCode, event ->
                     if (keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP && event.action == android.view.KeyEvent.ACTION_UP) {
                         onToggleFavorite()
@@ -455,10 +1135,196 @@ fun ExoPlayerView(
                         false
                     }
                 }
-            },
-            onRelease = {
-                exoPlayer?.release()
             }
         )
+
+        // Overlay: Buffering State
+        AnimatedVisibility(
+            visible = isBuffering && !isError,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.Center)
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xCC090D16))
+                    .border(BorderStroke(1.dp, Color(0x33FFFFFF)), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 32.dp, vertical = 24.dp)
+            ) {
+                CircularProgressIndicator(
+                    color = Color.White,
+                    strokeWidth = 3.dp,
+                    modifier = Modifier.size(36.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Conectando con ${channel.name}...",
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Cargando señal en vivo",
+                    color = Color.LightGray,
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        // Overlay: Friendly Error / Unavailable State
+        AnimatedVisibility(
+            visible = isError,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xE6080C14)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .widthIn(min = 480.dp, max = 640.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFF111827))
+                        .border(BorderStroke(1.dp, Color(0x33FFFFFF)), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 36.dp, vertical = 28.dp)
+                ) {
+                    if (channel.logo.isNotBlank()) {
+                        SubcomposeAsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(channel.logo)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = channel.name,
+                            modifier = Modifier.size(64.dp),
+                            contentScale = ContentScale.Fit
+                        ) {
+                            val state = painter.state
+                            if (state is AsyncImagePainter.State.Success) {
+                                SubcomposeAsyncImageContent()
+                            } else {
+                                androidx.compose.material3.Text("📡", fontSize = 48.sp)
+                            }
+                        }
+                    } else {
+                        androidx.compose.material3.Text("📡", fontSize = 48.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = channel.name,
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0x33EF4444))
+                            .border(BorderStroke(1.dp, Color(0x66EF4444)), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "⚠️ Señal Temporalmente No Disponible",
+                            color = Color(0xFFFCA5A5),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = errorMessage.ifEmpty {
+                            "Este canal se encuentra fuera de transmisión en este momento o tiene restricciones geográficas en tu zona."
+                        },
+                        color = Color(0xFFCBD5E1),
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 18.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            onClick = {
+                                isError = false
+                                isBuffering = true
+                                retryCount++
+                            },
+                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+                            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
+                            border = ClickableSurfaceDefaults.border(
+                                border = Border(BorderStroke(1.dp, Color(0x33FFFFFF))),
+                                focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                            ),
+                            colors = ClickableSurfaceDefaults.colors(
+                                containerColor = TvPrimary,
+                                focusedContainerColor = TvPrimaryFocused
+                            ),
+                            modifier = Modifier.focusRequester(retryFocusRequester)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
+                            ) {
+                                androidx.compose.material3.Text("🔄", fontSize = 14.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Reintentar",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Surface(
+                            onClick = onClose,
+                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+                            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
+                            border = ClickableSurfaceDefaults.border(
+                                border = Border(BorderStroke(1.dp, Color(0x33FFFFFF))),
+                                focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                            ),
+                            colors = ClickableSurfaceDefaults.colors(
+                                containerColor = Color(0xFF1E293B),
+                                focusedContainerColor = Color(0xFF334155)
+                            )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
+                            ) {
+                                androidx.compose.material3.Text("⬅️", fontSize = 14.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Volver a Canales",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

@@ -21,6 +21,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -80,17 +81,13 @@ dependencies {
   androidTestImplementation(libs.androidx.test.runner)
   androidTestImplementation(libs.androidx.test.espresso.core)
 
-  // Navigation
-  implementation(libs.androidx.navigation3.ui)
-  implementation(libs.androidx.navigation3.runtime)
-  implementation(libs.androidx.lifecycle.viewmodel.navigation3)
-  
   // Custom TVDROID Dependencies
   implementation("com.squareup.okhttp3:okhttp:4.12.0")
   implementation("androidx.media3:media3-exoplayer:1.2.0")
   implementation("androidx.media3:media3-exoplayer-hls:1.2.0")
   implementation("androidx.media3:media3-ui:1.2.0")
   implementation("io.coil-kt:coil-compose:2.6.0")
+  implementation("io.coil-kt:coil-svg:2.6.0")
 
   // TV Compose
   implementation("androidx.tv:tv-foundation:1.0.0-alpha11")

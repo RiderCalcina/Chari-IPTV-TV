@@ -1,45 +1,53 @@
-# Chari-IPTV - Aplicación Nativa para Android TV 📺
+# Chari-IPTV TV - Aplicación Nativa para Android TV 📺
 
-**Chari-IPTV** (anteriormente conocida como TVDROID) es una aplicación nativa diseñada específicamente para dispositivos con Android TV (Smart TVs, TV Boxes, Fire TV Sticks). Esta aplicación es una evolución y migración del proyecto original web (IPTVPRO_ESP), reconstruida desde cero para brindar una experiencia inmersiva, de alto rendimiento y totalmente autónoma en la sala de estar.
+**Chari-IPTV TV** (anteriormente conocida como TVDROID) es una aplicación nativa diseñada específicamente para dispositivos con Android TV (Smart TVs, TV Boxes, Fire TV Sticks). Esta aplicación es una evolución y migración del proyecto original web (IPTVPRO_ESP), reconstruida desde cero con **Jetpack Compose para TV** para brindar una experiencia inmersiva, de alto rendimiento y totalmente autónoma en la sala de estar.
 
-> 📖 **Nota de Interfaz:** Para una descripción detallada de todos los elementos visuales, comportamiento y flujos de usuario de la aplicación, consulta la [Documentación de Interfaz de Usuario (INTERFAZ_USUARIO.md)](./INTERFAZ_USUARIO.md).
+> 📖 **Nota de Interfaz:** Para una descripción detallada de todos los elementos visuales, comportamiento y flujos de navegación de la aplicación, consulta la [Documentación de Interfaz de Usuario (INTERFAZ_USUARIO.md)](./INTERFAZ_USUARIO.md).
 
 ---
 
 ## 🚀 Características Principales
 
-*   **100% Autónoma:** A diferencia de la versión web, Chari-IPTV no necesita un servidor backend (XAMPP/PHP). Se conecta directamente a internet, descargando, parseando y validando la lista oficial de canales IPTV.
-*   **Soporte Multi-País:** Los usuarios pueden desplazarse a través de un menú superior (Tabs) para explorar canales de televisión abierta y regional de toda Hispanoamérica (Perú, México, España, Argentina, Chile, Colombia, etc.).
+*   **100% Autónoma:** A diferencia de la versión web, Chari-IPTV TV no necesita un servidor backend local (XAMPP/PHP). Se conecta directamente a internet, descargando, parseando y validando la lista oficial de canales IPTV.
+*   **Exclusividad 100% Habla Hispana:** La aplicación se alimenta de la lista curada oficial en español (`languages/spa.m3u`), asegurando que todos los canales y categorías provengan exclusivamente de España e Hispanoamérica, sin señales en idiomas extranjeros.
+*   **Filtros por Categoría & Género en la Pantalla Principal:** Botones interactivos tipo tarjeta para acceder directamente a **Deportes**, **Noticias**, **Películas**, **Series**, **Infantil** y **Música**, validando transmisiones en vivo activas.
+*   **Sub-selector de Países Dinámico:** Al presionar el botón "Países", se despliega una sub-fila interactiva con banderas oficiales y nombres para explorar canales locales de toda Hispanoamérica y España (Perú, México, Argentina, Chile, Colombia, etc.).
+*   **Ventana Modal "Importante" (3 Códigos QR Simétricos):** Ubicada en primer lugar en la barra principal, con diseño panorámico y tres tarjetas simétricas para escanear con la cámara del teléfono: donaciones internacionales vía **PayPal**, donaciones en Perú mediante **Yape**, y visita a la web oficial del desarrollador (**www.qwertyaserty.com**), con mensaje de agradecimiento y aclaración de que la app es 100% gratuita.
+*   **Carga Optimizada de Logos (Coil + SVG):** Motor de imágenes con soporte nativo para gráficos vectoriales `.svg`, cabeceras simuladas de navegador de escritorio (`Chrome User-Agent`) para evitar bloqueos HTTP 403 de Wikimedia/Imgur, y caché local en disco (100 MB) y memoria RAM.
 *   **Validación Local de Canales:** Antes de mostrar los canales en pantalla, la aplicación realiza una petición HTTP parcial (`Range: bytes=0-500`) en segundo plano para garantizar que el canal está emitiendo en vivo, evitando mostrar canales caídos.
-*   **Caché Persistente (Room):** Para evitar congelamientos o el uso excesivo de datos, la aplicación solo valida los canales del país seleccionado. Una vez validados, se guardan en una base de datos local permanente. Al salir y volver a ingresar a la app, los canales cargan de forma instantánea (0 segundos de espera). Para buscar canales nuevos o actualizar los caídos, el usuario puede forzar un escaneo remoto volviendo a seleccionar la pestaña del país en el que ya se encuentra.
-*   **Sección Exclusiva de Favoritos:** La base de datos local gestiona tus canales preferidos. Tienes una pestaña exclusiva llamada **"Favoritos"** al principio del menú principal que agrupa en tiempo real todos los canales que has marcado, sin importar su país de origen.
-*   **Interfaz Leanback / Modo Oscuro:** Construida con *Jetpack Compose*, la interfaz presenta un Grid (cuadrícula) en tono oscuro absoluto (`#0F172A`), ideal para visualización nocturna, reduciendo la fatiga visual. Las tarjetas de canal manejan sus estados de error inteligentemente mostrando fallbacks visuales automáticos cuando una imagen no está disponible.
-*   **Controles Optimizados:** Interfaz 100% nativa para D-Pad. Interacción fluida mediante *Long Press* en la grilla y mapeo de botones de hardware (Retroceso, D-Pad Up) durante la reproducción para una experiencia limpia sin botones superpuestos.
-*   **Motor de Video ExoPlayer:** Integra `Media3 ExoPlayer` de Google, el estándar de la industria para Android TV. Ofrece reproducción nativa HLS (`.m3u8`), gestión inteligente de errores de red (cierra el video y avisa con un mensaje 'Toast' si el canal cae en lugar de quedar en negro), permisos para aceptar HTTP sin cifrar (`usesCleartextTraffic`), certificados auto-firmados, prevención del apagado de pantalla (screensaver) automático, y pausa inteligente del audio al pasar a segundo plano gracias a un manejo robusto del `Lifecycle` de Android.
+*   **Caché Persistente (Room Database v5):** Los canales validados se guardan en una base de datos local permanente con clave primaria compuesta `(url, countryCode)`. La lista de Favoritos es 100% autónoma y almacena el nombre, logo y URL directamente, garantizando que los canales guardados se muestren siempre de forma inmediata sin depender de la caché temporal.
+*   **Cinta de Noticias RSS Integrada:** Marquesina de noticias deslizante continua (`basicMarquee`) que mantiene a los usuarios informados directamente en la pantalla de la TV con las publicaciones del blog oficial.
+*   **Sección Exclusiva de Favoritos con Feedback Visual:** Base de datos local para gestionar tus canales preferidos. Al añadir o quitar un canal, se muestra un *Snackbar* personalizado y animado con iconos de corazones (❤️ o 🤍).
+*   **Interfaz Leanback / Modo Oscuro:** Construida con *Jetpack Compose for TV*, presenta un Grid oscuro absoluto (`#0F172A`) optimizado para evitar fatiga visual en la sala de estar.
+*   **Receptor Oficial de Google Cast:** La app está configurada formalmente como un receptor nativo de Chromecast, permitiendo que aplicaciones móviles descubran y transmitan hacia la TV.
+*   **Motor de Video ExoPlayer:** Integra `Media3 ExoPlayer` con gestión inteligente de errores de red, prevención de reposo de pantalla (`FLAG_KEEP_SCREEN_ON`) y pausa automática al cambiar de aplicación (`LifecycleEventObserver`).
 
 ---
 
 ## 🛠️ Stack Tecnológico
 
-*   **Lenguaje:** Kotlin 1.9+
-*   **UI Toolkit:** Jetpack Compose
-*   **Reproductor Multimedia:** AndroidX Media3 (ExoPlayer) con manejo de eventos de ciclo de vida (`LifecycleEventObserver`)
-*   **Cliente HTTP:** OkHttp (con configuraciones personalizadas de timeout y bypass SSL)
-*   **Asincronía:** Kotlin Coroutines (`async` / `awaitAll`) & Dispatchers
-*   **Carga de Imágenes:** Coil Compose `SubcomposeAsyncImage` (renderizado asíncrono y control de estados de error)
-*   **Persistencia:** Room Database (Caché de Canales y gestión de Favoritos)
-*   **Build System:** Gradle (Kotlin DSL)
+*   **Lenguaje:** Kotlin 1.9+ (JVM Toolchain 17)
+*   **Target SDK:** Android SDK 36 (Android 16), Min SDK 24 (Android 7.0+)
+*   **UI Toolkit:** Jetpack Compose for TV (`androidx.tv:tv-foundation:1.0.0-alpha11`, `androidx.tv:tv-material:1.0.0`) y Material 3
+*   **Reproductor Multimedia:** AndroidX Media3 ExoPlayer 1.2.0 (HLS `.m3u8`, ciclo de vida y cleartext traffic)
+*   **Cliente HTTP & Red:** Retrofit 2.11.0 + OkHttp 4.12.0 (bypass SSL, timeout optimizado y User-Agent de navegador)
+*   **Inyección de Dependencias:** Dagger Hilt 2.51.1
+*   **Asincronía & Reactividad:** Kotlin Coroutines (`async` / `awaitAll`), Dispatchers (`IO` / `Main`), StateFlow
+*   **Carga de Imágenes:** Coil Compose 2.6.0 + Coil SVG 2.6.0 (`SubcomposeAsyncImage`, `ImageLoaderFactory`, DiskCache 100MB)
+*   **Persistencia Local:** Room Database 2.6.1 (Caché de Canales v4 y Favoritos con clave compuesta)
+*   **Build System:** Gradle (Kotlin DSL con Version Catalog `libs.versions.toml`)
 
 ---
 
 ## 📂 Arquitectura del Proyecto
 
 El flujo de trabajo es el siguiente:
-1.  **Descarga Global:** Al iniciar `MainActivity.kt`, se descarga a la memoria caché la lista maestra global `index.m3u` (`https://iptv-org.github.io/iptv/index.m3u`).
-2.  **Selección de País:** Cuando se selecciona una pestaña (ej. Perú), el motor interno procesa la lista en memoria y busca coincidencias con el código de país.
-3.  **Verificación Concurrente:** Usando corrutinas, se lanzan procesos asíncronos paralelos para verificar el estado de los canales (conexión de 500 bytes). Solo los canales que responden un código de éxito 20x/30x (y no son páginas HTML) pasan el filtro.
-4.  **Renderizado UI:** La lista limpia se devuelve al hilo principal (`Dispatchers.Main`) y Jetpack Compose renderiza de inmediato el `TvLazyVerticalGrid`. Si se selecciona la pestaña Favoritos, se unifican todos los canales validados y guardados previamente.
-5.  **Reproducción:** Al hacer clic en un canal, la cuadrícula se suspende (guardando su estado de scroll) y se carga la vista `ExoPlayerView`.
+1.  **Descarga Curada en Español:** El repositorio consulta la lista oficial `languages/spa.m3u` (`https://iptv-org.github.io/iptv/languages/spa.m3u`) asegurando únicamente contenido en español.
+2.  **Selección de Filtro o País:** Cuando el usuario selecciona una categoría (ej. Deportes, Noticias, Películas) o un país (ej. Perú, México), el motor filtra las transmisiones por `group-title` o código de país.
+3.  **Verificación Concurrente:** Usando corrutinas paralelas, se verifica el estado en vivo de los canales mediante una conexión de 500 bytes. Solo los canales que responden con códigos 20x/30x (y contenido multimedia) pasan a la vista.
+4.  **Almacenamiento en Caché (Room):** Los canales activos se persisten en Room bajo su respectivo identificador de filtro, permitiendo carga instantánea en visitas posteriores.
+5.  **Renderizado UI:** La grilla (`TvLazyVerticalGrid`) renderiza 4 columnas de tarjetas interactivas adaptadas al control remoto D-Pad con foco escalado a `1.15f`.
+6.  **Reproducción:** Al pulsar sobre un canal, la cuadrícula suspende su renderizado y se inicia `ExoPlayerView` a pantalla completa.
 
 ---
 
@@ -50,26 +58,26 @@ Puedes compilar la aplicación utilizando Android Studio o directamente desde la
 ### Método 1: Desde la Terminal (Gradle CLI)
 1. Abre tu terminal y dirígete a la carpeta del proyecto:
    ```powershell
-   cd C:\xampp\htdocs\IPTVPRO_ESP\Chari-IPTV
+   cd C:\xampp\htdocs\Chari-IPTV_TV
    ```
-2. (Si tienes errores con JAVA_HOME, define la ruta de tu JDK primero):
+2. (Opcional, si no tienes definido JAVA_HOME):
    ```powershell
    $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
    ```
 3. Ejecuta el comando de compilación:
    ```powershell
-   .\gradlew assembleDebug
+   .\gradlew.bat assembleDebug
    ```
 4. El archivo instalable lo encontrarás en:
    `app\build\outputs\apk\debug\app-debug.apk`
 
 ### Método 2: Desde Android Studio
-1. Abre **Android Studio** -> *Open Project* -> Selecciona la carpeta `Chari-IPTV`.
+1. Abre **Android Studio** -> *Open Project* -> Selecciona la carpeta `Chari-IPTV_TV`.
 2. Espera a que termine la sincronización de Gradle (barra inferior).
 3. Ve al menú superior: **Build > Build Bundle(s) / APK(s) > Build APK(s)**.
-4. Haz clic en el botón flotante emergente "Locate" para ver tu APK.
+4. Haz clic en el aviso flotante "Locate" para acceder a la carpeta del APK generado.
 
 ### Instalación en la TV
-Una vez tengas el archivo **`app-debug.apk`**, puedes instalarlo en tu Android TV de dos formas:
-*   Copiándolo a una **Memoria USB** (Pendrive) y conectándola a la TV (necesitas un explorador de archivos en la TV como *File Commander*).
-*   Enviándolo por Wi-Fi usando la aplicación gratuita **"Send Files to TV"** (disponible en la PlayStore tanto de tu celular/PC como de tu Smart TV).
+Una vez generado el archivo **`app-debug.apk`**, puedes instalarlo en tu Smart TV o TV Box de dos formas:
+*   **Memoria USB (Pendrive):** Copia el APK a un pendrive, conéctalo a la TV y ejecútalo mediante un explorador de archivos (ej. *File Commander* o *X-plore*).
+*   **Envío por Red Local (Wi-Fi):** Usa la app gratuita **"Send Files to TV"** (disponible en Google Play Store tanto en el móvil/PC como en el Smart TV) para transferir el APK directamente e instalarlo.

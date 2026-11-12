@@ -6,5 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "favorites")
 data class FavoriteChannel(
     @PrimaryKey val url: String,
+    val name: String = "",
+    val logo: String = "",
     val addedAt: Long = System.currentTimeMillis()
 )
