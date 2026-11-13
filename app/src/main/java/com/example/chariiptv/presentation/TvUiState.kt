@@ -4,7 +4,7 @@ import com.example.chariiptv.domain.Channel
 
 data class TvUiState(
     val channels: List<Channel> = emptyList(),
-    val favorites: List<String> = emptyList(),
+    val favorites: Set<String> = emptySet(),
     val isLoading: Boolean = false,
     val selectedFilterId: String = "fav",
     val selectedCountryCode: String = "pe",

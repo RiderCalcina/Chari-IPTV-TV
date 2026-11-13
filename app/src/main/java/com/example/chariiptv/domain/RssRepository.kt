@@ -23,12 +23,12 @@ class RssRepositoryImpl @Inject constructor(
                 .url(Constants.RSS_URL)
                 .build()
 
-            val response = okHttpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                return@withContext Result.failure(Exception("Error fetching RSS: ${response.code}"))
+            val textContent = okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return@withContext Result.failure(Exception("Error fetching RSS: ${response.code}"))
+                }
+                response.body?.string()?.trimStart() ?: ""
             }
-
-            val textContent = response.body?.string()?.trimStart() ?: ""
             if (textContent.isEmpty()) {
                 return@withContext Result.failure(Exception("Empty RSS content"))
             }

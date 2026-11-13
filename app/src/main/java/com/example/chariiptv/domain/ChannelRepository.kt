@@ -14,19 +14,31 @@ import kotlinx.coroutines.sync.Semaphore
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
+
+private data class RawParsedChannel(
+    val name: String,
+    val logo: String,
+    val url: String,
+    val country: String,
+    val cleanId: String,
+    val groupTitle: String
+)
 
 @Singleton
 class ChannelRepository @Inject constructor(
     private val apiService: M3uApiService,
     private val favoriteDao: FavoriteDao,
     private val cachedChannelDao: CachedChannelDao,
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    @Named("pingOkHttpClient") private val pingOkHttpClient: OkHttpClient
 ) {
 
     private var cachedSpanishM3uContent: String? = null
+    private var cachedRawChannels: List<RawParsedChannel>? = null
     private val channelsCache = mutableMapOf<String, List<Channel>>()
-    private val pingSemaphore = Semaphore(12)
+    private val pingSemaphore = Semaphore(16)
 
     fun getFavoritesFlow(): Flow<List<String>> = favoriteDao.getFavorites()
 
@@ -67,6 +79,62 @@ class ChannelRepository @Inject constructor(
         return body
     }
 
+    private fun extractAttribute(line: String, attr: String): String {
+        val key = "$attr=\""
+        val startIdx = line.indexOf(key)
+        if (startIdx == -1) return ""
+        val valStart = startIdx + key.length
+        val endIdx = line.indexOf('"', valStart)
+        if (endIdx == -1) return ""
+        return line.substring(valStart, endIdx).trim()
+    }
+
+    private suspend fun getSpanishRawChannels(): List<RawParsedChannel> {
+        cachedRawChannels?.let { return it }
+        val m3uContent = fetchSpanishM3u() ?: return emptyList()
+
+        val list = ArrayList<RawParsedChannel>(1200)
+        var currentName = ""
+        var currentLogo = ""
+        var currentCountry = ""
+        var currentCleanId = ""
+        var currentGroup = ""
+        var hasExtInf = false
+
+        m3uContent.lineSequence().forEach { rawLine ->
+            val line = rawLine.trim()
+            if (line.startsWith("#EXTINF:-1")) {
+                currentLogo = extractAttribute(line, "tvg-logo")
+                currentCountry = extractAttribute(line, "tvg-country").lowercase()
+                val tvgId = extractAttribute(line, "tvg-id").lowercase()
+                currentCleanId = tvgId.substringBefore("@")
+                currentGroup = extractAttribute(line, "group-title").lowercase()
+
+                if (currentLogo.isBlank() && currentCleanId.isNotBlank()) {
+                    currentLogo = "https://iptv-org.github.io/logos/symbols/$currentCleanId.png"
+                }
+
+                currentName = line.substringAfterLast(",").trim()
+                hasExtInf = true
+            } else if (hasExtInf && line.startsWith("http")) {
+                list.add(
+                    RawParsedChannel(
+                        name = currentName,
+                        logo = currentLogo,
+                        url = line,
+                        country = currentCountry,
+                        cleanId = currentCleanId,
+                        groupTitle = currentGroup
+                    )
+                )
+                hasExtInf = false
+            }
+        }
+
+        cachedRawChannels = list
+        return list
+    }
+
     suspend fun getChannelsByCountry(countryCode: String, forceRefresh: Boolean = false): List<Channel> = withContext(Dispatchers.IO) {
         if (forceRefresh) {
             channelsCache.remove(countryCode)
@@ -82,51 +150,28 @@ class ChannelRepository @Inject constructor(
             return@withContext channels
         }
 
-        val m3uContent = fetchSpanishM3u() ?: return@withContext emptyList()
+        val rawChannels = getSpanishRawChannels()
+        if (rawChannels.isEmpty()) return@withContext emptyList()
 
-        val parsedChannels = mutableListOf<Channel>()
-        var currentName = ""
-        var currentLogo = ""
-        var isCountryChannel = false
+        val matchingChannels = rawChannels.filter { raw ->
+            raw.country == countryCode || (raw.country.isEmpty() && raw.cleanId.endsWith(".$countryCode"))
+        }.map { Channel(it.name, it.logo, it.url) }.distinctBy { it.url }
 
-        val logoRegex = "tvg-logo=\"([^\"]*)\"".toRegex()
-        val countryRegex = "tvg-country=\"([^\"]*)\"".toRegex()
-        val idRegex = "tvg-id=\"([^\"]*)\"".toRegex()
-
-        m3uContent.lines().forEach { line ->
-            if (line.startsWith("#EXTINF:-1")) {
-                currentLogo = logoRegex.find(line)?.groupValues?.get(1)?.trim() ?: ""
-                val tvgCountry = countryRegex.find(line)?.groupValues?.get(1)?.lowercase()?.trim() ?: ""
-                val tvgId = idRegex.find(line)?.groupValues?.get(1)?.lowercase()?.trim() ?: ""
-                val cleanId = tvgId.substringBefore("@")
-
-                if (currentLogo.isBlank() && cleanId.isNotBlank()) {
-                    currentLogo = "https://iptv-org.github.io/logos/symbols/$cleanId.png"
-                }
-
-                isCountryChannel = (tvgCountry == countryCode || (tvgCountry.isEmpty() && cleanId.endsWith(".$countryCode")))
-                currentName = line.substringAfterLast(",").trim()
-            } else if (line.startsWith("http") && isCountryChannel) {
-                parsedChannels.add(Channel(currentName, currentLogo, line.trim()))
-                isCountryChannel = false
-            }
-        }
-
-        val uniqueChannels = parsedChannels.distinctBy { it.url }
-
-        val workingChannels = uniqueChannels.map { channel ->
+        val workingChannels = matchingChannels.map { channel ->
             async {
                 if (isStreamWorking(channel.url)) channel else null
             }
         }.awaitAll().filterNotNull()
 
-        val entitiesToSave = workingChannels.map { 
+        val finalChannels = if (workingChannels.isNotEmpty()) workingChannels else matchingChannels
+
+        val entitiesToSave = finalChannels.map { 
             CachedChannel(it.url, it.name, it.logo, countryCode)
         }
         cachedChannelDao.insertChannels(entitiesToSave)
 
-        channelsCache[countryCode] = workingChannels
-        return@withContext workingChannels
+        channelsCache[countryCode] = finalChannels
+        return@withContext finalChannels
     }
 
     suspend fun getChannelsByCategory(categoryKey: String, forceRefresh: Boolean = false): List<Channel> = withContext(Dispatchers.IO) {
@@ -144,15 +189,8 @@ class ChannelRepository @Inject constructor(
             return@withContext channels
         }
 
-        val m3uContent = fetchSpanishM3u() ?: return@withContext emptyList()
-
-        val parsedChannels = mutableListOf<Channel>()
-        var currentName = ""
-        var currentLogo = ""
-        var isTargetCategory = false
-
-        val logoRegex = "tvg-logo=\"([^\"]*)\"".toRegex()
-        val groupRegex = "group-title=\"([^\"]*)\"".toRegex()
+        val rawChannels = getSpanishRawChannels()
+        if (rawChannels.isEmpty()) return@withContext emptyList()
 
         val categoryKeywords = when (categoryKey) {
             "sports" -> listOf("sports", "deporte")
@@ -164,62 +202,43 @@ class ChannelRepository @Inject constructor(
             else -> listOf(categoryKey)
         }
 
-        val idRegex = "tvg-id=\"([^\"]*)\"".toRegex()
+        val matchingChannels = rawChannels.filter { raw ->
+            val isForeign = isForeignChannel(raw.name)
+            !isForeign && categoryKeywords.any { raw.groupTitle.contains(it) }
+        }.map { Channel(it.name, it.logo, it.url) }.distinctBy { it.url }
 
-        m3uContent.lines().forEach { line ->
-            if (line.startsWith("#EXTINF:-1")) {
-                currentLogo = logoRegex.find(line)?.groupValues?.get(1)?.trim() ?: ""
-                val groupTitle = groupRegex.find(line)?.groupValues?.get(1)?.lowercase()?.trim() ?: ""
-                val tvgId = idRegex.find(line)?.groupValues?.get(1)?.lowercase()?.trim() ?: ""
-                val cleanId = tvgId.substringBefore("@")
-
-                if (currentLogo.isBlank() && cleanId.isNotBlank()) {
-                    currentLogo = "https://iptv-org.github.io/logos/symbols/$cleanId.png"
-                }
-                
-                isTargetCategory = categoryKeywords.any { groupTitle.contains(it) }
-                currentName = line.substringAfterLast(",").trim()
-
-                // Exclude any non-Spanish channels that might have foreign language tags
-                val isForeign = currentName.contains("(Sweden)", ignoreCase = true) ||
-                                currentName.contains("(India)", ignoreCase = true) ||
-                                currentName.contains("(Pakistan)", ignoreCase = true) ||
-                                currentName.contains("(Turkiye)", ignoreCase = true) ||
-                                currentName.contains("(Turkey)", ignoreCase = true) ||
-                                currentName.contains("(Arabic)", ignoreCase = true) ||
-                                currentName.contains("(Germany)", ignoreCase = true) ||
-                                currentName.contains("(Italy)", ignoreCase = true) ||
-                                currentName.contains("(United Kingdom)", ignoreCase = true) ||
-                                currentName.contains("(France)", ignoreCase = true) ||
-                                currentName.contains("(Russia)", ignoreCase = true) ||
-                                currentName.contains("(Japan)", ignoreCase = true) ||
-                                currentName.contains("(Korea)", ignoreCase = true) ||
-                                currentName.contains("(China)", ignoreCase = true)
-
-                if (isForeign) {
-                    isTargetCategory = false
-                }
-            } else if (line.startsWith("http") && isTargetCategory) {
-                parsedChannels.add(Channel(currentName, currentLogo, line.trim()))
-                isTargetCategory = false
-            }
-        }
-
-        val uniqueChannels = parsedChannels.distinctBy { it.url }
-
-        val workingChannels = uniqueChannels.map { channel ->
+        val workingChannels = matchingChannels.map { channel ->
             async {
                 if (isStreamWorking(channel.url)) channel else null
             }
         }.awaitAll().filterNotNull()
 
-        val entitiesToSave = workingChannels.map { 
+        val finalChannels = if (workingChannels.isNotEmpty()) workingChannels else matchingChannels
+
+        val entitiesToSave = finalChannels.map { 
             CachedChannel(it.url, it.name, it.logo, categoryKey)
         }
         cachedChannelDao.insertChannels(entitiesToSave)
 
-        channelsCache[categoryKey] = workingChannels
-        return@withContext workingChannels
+        channelsCache[categoryKey] = finalChannels
+        return@withContext finalChannels
+    }
+
+    private fun isForeignChannel(name: String): Boolean {
+        return name.contains("(Sweden)", ignoreCase = true) ||
+                name.contains("(India)", ignoreCase = true) ||
+                name.contains("(Pakistan)", ignoreCase = true) ||
+                name.contains("(Turkiye)", ignoreCase = true) ||
+                name.contains("(Turkey)", ignoreCase = true) ||
+                name.contains("(Arabic)", ignoreCase = true) ||
+                name.contains("(Germany)", ignoreCase = true) ||
+                name.contains("(Italy)", ignoreCase = true) ||
+                name.contains("(United Kingdom)", ignoreCase = true) ||
+                name.contains("(France)", ignoreCase = true) ||
+                name.contains("(Russia)", ignoreCase = true) ||
+                name.contains("(Japan)", ignoreCase = true) ||
+                name.contains("(Korea)", ignoreCase = true) ||
+                name.contains("(China)", ignoreCase = true)
     }
 
     private suspend fun isStreamWorking(urlString: String): Boolean = withContext(Dispatchers.IO) {
@@ -236,7 +255,7 @@ class ChannelRepository @Inject constructor(
             }
             
             val request = requestBuilder.get().build()
-            val response = okHttpClient.newCall(request).execute()
+            val response = pingOkHttpClient.newCall(request).execute()
             val code = response.code
             val isSuccess = response.isSuccessful || code == 206 || code in 300..308
             response.close()

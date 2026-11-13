@@ -15,6 +15,7 @@ import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import javax.inject.Named
 import javax.inject.Singleton
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
@@ -47,6 +48,17 @@ object AppModule {
                 .readTimeout(8, TimeUnit.SECONDS)
                 .build()
         }
+    }
+
+    @Provides
+    @Singleton
+    @Named("pingOkHttpClient")
+    fun providePingOkHttpClient(okHttpClient: OkHttpClient): OkHttpClient {
+        return okHttpClient.newBuilder()
+            .connectTimeout(2500, TimeUnit.MILLISECONDS)
+            .readTimeout(2500, TimeUnit.MILLISECONDS)
+            .callTimeout(3000, TimeUnit.MILLISECONDS)
+            .build()
     }
 
     @Provides

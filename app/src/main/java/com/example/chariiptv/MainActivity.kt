@@ -56,9 +56,7 @@ import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
-import coil.compose.AsyncImagePainter
-import coil.compose.SubcomposeAsyncImage
-import coil.compose.SubcomposeAsyncImageContent
+import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.launch
 import com.example.chariiptv.domain.Channel
@@ -265,12 +263,12 @@ fun ChannelGrid(
     onFilterSelected: (String, Boolean) -> Unit,
     onCountrySelected: (String, Boolean) -> Unit,
     channels: List<Channel>,
-    favorites: List<String>,
+    favorites: Set<String>,
     isLoading: Boolean,
     onChannelClick: (Channel) -> Unit,
     onToggleFavorite: (Channel) -> Unit
 ) {
-    val sortedChannels = channels.sortedBy { it.name }
+    val sortedChannels = remember(channels) { channels.sortedBy { it.name } }
     val gridState = rememberLazyGridState()
     val mainRowState = rememberLazyListState()
     val countryRowState = rememberLazyListState()
@@ -595,40 +593,21 @@ fun ChannelGrid(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
-                                if (channel.logo.isNotBlank()) {
-                                    SubcomposeAsyncImage(
-                                        model = ImageRequest.Builder(LocalContext.current)
-                                            .data(channel.logo)
-                                            .crossfade(true)
-                                            .build(),
-                                        contentDescription = channel.name,
-                                        modifier = Modifier.weight(1f).fillMaxWidth().padding(bottom = 8.dp),
-                                        contentScale = ContentScale.Fit
-                                    ) {
-                                        val state = painter.state
-                                        when (state) {
-                                            is AsyncImagePainter.State.Loading -> {
-                                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                                    CircularProgressIndicator(
-                                                        modifier = Modifier.size(24.dp),
-                                                        color = Color.White.copy(alpha = 0.4f),
-                                                        strokeWidth = 2.dp
-                                                    )
-                                                }
-                                            }
-                                            is AsyncImagePainter.State.Error -> {
-                                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                                    androidx.compose.material3.Text("📺", fontSize = 32.sp)
-                                                }
-                                            }
-                                            else -> {
-                                                SubcomposeAsyncImageContent()
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                        androidx.compose.material3.Text("📺", fontSize = 32.sp)
+                                Box(
+                                    modifier = Modifier.weight(1f).fillMaxWidth().padding(bottom = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    androidx.compose.material3.Text("📺", fontSize = 32.sp)
+                                    if (channel.logo.isNotBlank()) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(LocalContext.current)
+                                                .data(channel.logo)
+                                                .crossfade(true)
+                                                .build(),
+                                            contentDescription = channel.name,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Fit
+                                        )
                                     }
                                 }
                                 Text(

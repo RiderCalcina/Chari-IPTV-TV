@@ -51,7 +51,7 @@ class TvViewModel @Inject constructor(
 
         viewModelScope.launch {
             repository.getFavoritesFlow().collect { favs ->
-                _uiState.update { it.copy(favorites = favs) }
+                _uiState.update { it.copy(favorites = favs.toSet()) }
                 if (_uiState.value.selectedFilterId == "fav") {
                     val channels = repository.getFavoriteChannels()
                     _uiState.update { it.copy(channels = channels) }
