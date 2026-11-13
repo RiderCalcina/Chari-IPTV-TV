@@ -20,21 +20,22 @@
 *   **Sección Exclusiva de Favoritos con Feedback Visual:** Base de datos local para gestionar tus canales preferidos. Al añadir o quitar un canal, se muestra un *Snackbar* personalizado y animado con iconos de corazones (❤️ o 🤍).
 *   **Interfaz Leanback / Modo Oscuro:** Construida con *Jetpack Compose for TV*, presenta un Grid oscuro absoluto (`#0F172A`) optimizado para evitar fatiga visual en la sala de estar.
 *   **Receptor Oficial de Google Cast:** La app está configurada formalmente como un receptor nativo de Chromecast, permitiendo que aplicaciones móviles descubran y transmitan hacia la TV.
-*   **Motor de Video ExoPlayer:** Integra `Media3 ExoPlayer` con gestión inteligente de errores de red, prevención de reposo de pantalla (`FLAG_KEEP_SCREEN_ON`) y pausa automática al cambiar de aplicación (`LifecycleEventObserver`).
+*   **Motor de Video ExoPlayer & Audio FFmpeg:** Integra `Media3 ExoPlayer 1.2.0` con decodificador de audio por software `media3-ffmpeg-decoder` (soporte completo de audio AC3, E-AC3 y DTS), gestión de transmisiones HLS y MPEG-DASH, política inteligente de reintentos (`IptvLoadErrorPolicy`), prevención de reposo (`FLAG_KEEP_SCREEN_ON`) y ciclo de vida seguro.
+*   **Modo Pantalla Dividida (Dual View):** Permite sintonizar dos señales en vivo simultáneas (50% / 50%) con selector interactivo de canales y alternancia dinámica de audio (`🔊 / 🔇`) sin saturar los recursos de la TV.
 
 ---
 
 ## 🛠️ Stack Tecnológico
 
-*   **Lenguaje:** Kotlin 1.9+ (JVM Toolchain 17)
+*   **Lenguaje:** Kotlin 2.0+ (JVM Toolchain 17 / Compatible JDK 21)
 *   **Target SDK:** Android SDK 36 (Android 16), Min SDK 24 (Android 7.0+)
 *   **UI Toolkit:** Jetpack Compose for TV (`androidx.tv:tv-foundation:1.0.0-alpha11`, `androidx.tv:tv-material:1.0.0`) y Material 3
-*   **Reproductor Multimedia:** AndroidX Media3 ExoPlayer 1.2.0 (HLS `.m3u8`, ciclo de vida y cleartext traffic)
+*   **Reproductor Multimedia:** AndroidX Media3 ExoPlayer 1.2.0 (HLS `.m3u8`, MPEG-DASH `.mpd`, Jellyfin FFmpeg Audio Decoder, IptvLoadErrorPolicy)
 *   **Cliente HTTP & Red:** Retrofit 2.11.0 + OkHttp 4.12.0 (bypass SSL, timeout optimizado y User-Agent de navegador)
 *   **Inyección de Dependencias:** Dagger Hilt 2.51.1
 *   **Asincronía & Reactividad:** Kotlin Coroutines (`async` / `awaitAll`), Dispatchers (`IO` / `Main`), StateFlow
 *   **Carga de Imágenes:** Coil Compose 2.6.0 + Coil SVG 2.6.0 (`SubcomposeAsyncImage`, `ImageLoaderFactory`, DiskCache 100MB)
-*   **Persistencia Local:** Room Database 2.6.1 (Caché de Canales v4 y Favoritos con clave compuesta)
+*   **Persistencia Local:** Room Database 2.6.1 (Caché de Canales v5 y Favoritos autónomos con clave compuesta)
 *   **Build System:** Gradle (Kotlin DSL con Version Catalog `libs.versions.toml`)
 
 ---

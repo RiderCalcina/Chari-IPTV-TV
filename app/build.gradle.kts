@@ -83,9 +83,12 @@ dependencies {
 
   // Custom TVDROID Dependencies
   implementation("com.squareup.okhttp3:okhttp:4.12.0")
-  implementation("androidx.media3:media3-exoplayer:1.2.0")
-  implementation("androidx.media3:media3-exoplayer-hls:1.2.0")
-  implementation("androidx.media3:media3-ui:1.2.0")
+  val media3Version = "1.2.0"
+  implementation("androidx.media3:media3-exoplayer:$media3Version")
+  implementation("androidx.media3:media3-exoplayer-hls:$media3Version")
+  implementation("androidx.media3:media3-exoplayer-dash:$media3Version")
+  implementation("androidx.media3:media3-ui:$media3Version")
+  implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1")
   implementation("io.coil-kt:coil-compose:2.6.0")
   implementation("io.coil-kt:coil-svg:2.6.0")
 
