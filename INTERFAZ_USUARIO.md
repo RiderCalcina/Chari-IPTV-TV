@@ -93,8 +93,3 @@ Al presionar el botón **⭐ Importante**, se despliega una ventana modal intera
     2. **⬅️ Volver a Canales:** Regresa a la cuadrícula de canales sin perder el foco en la posición anterior.
 - **Temporizador de Timeout (Anti-Buffering Infinito):** Si un stream queda congelado en estado de carga durante más de 14 segundos sin responder, el sistema activa automáticamente la pantalla amigable de canal no disponible.
 - **Decodificador de Audio por Software (FFmpeg Integrado):** Incorpora el decodificador nativo de audio por software `media3-ffmpeg-decoder` (Jellyfin). Si el hardware del televisor o unos auriculares Bluetooth conectados no admiten pistas de audio envolventes como **AC3 (Dolby Digital), E-AC3 o DTS**, el motor conmuta automáticamente a FFmpeg para decodificar a estéreo en tiempo real, garantizando sonido en el 100% de las transmisiones.
-- **Modo Pantalla Dividida (Dual View / 2 Canales en Simultáneo):**
-  - En la esquina superior derecha del reproductor, el botón **🔀 Pantalla Dividida (Dual View)** despliega un carrusel interactivo en la parte inferior para seleccionar un segundo canal de la categoría actual o de favoritos.
-  - Al elegirlo, la pantalla se divide simétricamente al 50% / 50% entre ambos canales en vivo.
-  - Un indicador interactivo muestra cuál de los dos canales tiene el audio activo (`🔊` vs `🔇`). El usuario puede alternar el foco de audio pulsando sobre el panel o usando el botón de control en pantalla.
-  - Pulsar la tecla **Atrás (Back)** en el control remoto cierra limpiamente el segundo canal y regresa a pantalla completa.

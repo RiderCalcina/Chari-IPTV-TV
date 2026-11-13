@@ -126,7 +126,6 @@ class MainActivity : ComponentActivity() {
                         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
                             ExoPlayerView(
                                 channel = uiState.currentChannel!!,
-                                channelsList = uiState.channels,
                                 isFavorite = uiState.favorites.contains(uiState.currentChannel!!.url),
                                 onToggleFavorite = { 
                                     viewModel.toggleFavorite(uiState.currentChannel!!)

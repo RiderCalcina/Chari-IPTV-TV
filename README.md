@@ -21,7 +21,6 @@
 *   **Interfaz Leanback / Modo Oscuro:** Construida con *Jetpack Compose for TV*, presenta un Grid oscuro absoluto (`#0F172A`) optimizado para evitar fatiga visual en la sala de estar.
 *   **Receptor Oficial de Google Cast:** La app está configurada formalmente como un receptor nativo de Chromecast, permitiendo que aplicaciones móviles descubran y transmitan hacia la TV.
 *   **Motor de Video ExoPlayer & Audio FFmpeg:** Integra `Media3 ExoPlayer 1.2.0` con decodificador de audio por software `media3-ffmpeg-decoder` (soporte completo de audio AC3, E-AC3 y DTS), gestión de transmisiones HLS y MPEG-DASH, política inteligente de reintentos (`IptvLoadErrorPolicy`), prevención de reposo (`FLAG_KEEP_SCREEN_ON`) y ciclo de vida seguro.
-*   **Modo Pantalla Dividida (Dual View):** Permite sintonizar dos señales en vivo simultáneas (50% / 50%) con selector interactivo de canales y alternancia dinámica de audio (`🔊 / 🔇`) sin saturar los recursos de la TV.
 
 ---
 
