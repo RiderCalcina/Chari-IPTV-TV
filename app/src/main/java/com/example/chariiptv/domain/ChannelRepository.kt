@@ -4,41 +4,32 @@ import com.example.chariiptv.data.local.FavoriteChannel
 import com.example.chariiptv.data.local.FavoriteDao
 import com.example.chariiptv.data.local.CachedChannel
 import com.example.chariiptv.data.local.CachedChannelDao
-import com.example.chariiptv.data.remote.M3uApiService
+import com.example.chariiptv.domain.provider.IptvOrgProvider
+import com.example.chariiptv.domain.provider.PlutoTvProvider
+import com.example.chariiptv.domain.provider.TdtChannelsProvider
+import com.example.chariiptv.util.Constants
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.sync.Semaphore
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
 
-private data class RawParsedChannel(
-    val name: String,
-    val logo: String,
-    val url: String,
-    val country: String,
-    val cleanId: String,
-    val groupTitle: String
-)
-
 @Singleton
 class ChannelRepository @Inject constructor(
-    private val apiService: M3uApiService,
+    private val iptvOrgProvider: IptvOrgProvider,
+    private val tdtChannelsProvider: TdtChannelsProvider,
+    private val plutoTvProvider: PlutoTvProvider,
     private val favoriteDao: FavoriteDao,
     private val cachedChannelDao: CachedChannelDao,
     private val okHttpClient: OkHttpClient,
     @Named("pingOkHttpClient") private val pingOkHttpClient: OkHttpClient
 ) {
 
-    private var cachedSpanishM3uContent: String? = null
-    private var cachedRawChannels: List<RawParsedChannel>? = null
     private val channelsCache = mutableMapOf<String, List<Channel>>()
-    private val pingSemaphore = Semaphore(16)
 
     fun getFavoritesFlow(): Flow<List<String>> = favoriteDao.getFavorites()
 
@@ -65,206 +56,215 @@ class ChannelRepository @Inject constructor(
 
     suspend fun getFavoriteChannels(urls: List<String>): List<Channel> = getFavoriteChannels()
 
-    private suspend fun fetchSpanishM3u(): String? {
-        cachedSpanishM3uContent?.let { return it }
-        val response = try {
-            apiService.getSpanishM3u()
-        } catch (e: Exception) {
-            null
-        }
-        val body = if (response?.isSuccessful == true) response.body()?.string() else null
-        if (!body.isNullOrEmpty()) {
-            cachedSpanishM3uContent = body
-        }
-        return body
-    }
-
-    private fun extractAttribute(line: String, attr: String): String {
-        val key = "$attr=\""
-        val startIdx = line.indexOf(key)
-        if (startIdx == -1) return ""
-        val valStart = startIdx + key.length
-        val endIdx = line.indexOf('"', valStart)
-        if (endIdx == -1) return ""
-        return line.substring(valStart, endIdx).trim()
-    }
-
-    private suspend fun getSpanishRawChannels(): List<RawParsedChannel> {
-        cachedRawChannels?.let { return it }
-        val m3uContent = fetchSpanishM3u() ?: return emptyList()
-
-        val list = ArrayList<RawParsedChannel>(1200)
-        var currentName = ""
-        var currentLogo = ""
-        var currentCountry = ""
-        var currentCleanId = ""
-        var currentGroup = ""
-        var hasExtInf = false
-
-        m3uContent.lineSequence().forEach { rawLine ->
-            val line = rawLine.trim()
-            if (line.startsWith("#EXTINF:-1")) {
-                currentLogo = extractAttribute(line, "tvg-logo")
-                currentCountry = extractAttribute(line, "tvg-country").lowercase()
-                val tvgId = extractAttribute(line, "tvg-id").lowercase()
-                currentCleanId = tvgId.substringBefore("@")
-                currentGroup = extractAttribute(line, "group-title").lowercase()
-
-                if (currentLogo.isBlank() && currentCleanId.isNotBlank()) {
-                    currentLogo = "https://iptv-org.github.io/logos/symbols/$currentCleanId.png"
-                }
-
-                currentName = line.substringAfterLast(",").trim()
-                hasExtInf = true
-            } else if (hasExtInf && line.startsWith("http")) {
-                list.add(
-                    RawParsedChannel(
-                        name = currentName,
-                        logo = currentLogo,
-                        url = line,
-                        country = currentCountry,
-                        cleanId = currentCleanId,
-                        groupTitle = currentGroup
-                    )
-                )
-                hasExtInf = false
-            }
-        }
-
-        cachedRawChannels = list
-        return list
-    }
-
     suspend fun getChannelsByCountry(countryCode: String, forceRefresh: Boolean = false): List<Channel> = withContext(Dispatchers.IO) {
+        val normalizedCode = countryCode.lowercase()
         if (forceRefresh) {
-            channelsCache.remove(countryCode)
-            cachedChannelDao.deleteChannelsByCountry(countryCode)
+            channelsCache.remove(normalizedCode)
+            cachedChannelDao.deleteChannelsByCountry(normalizedCode)
+            tdtChannelsProvider.clearCache()
+            plutoTvProvider.clearCache()
+            iptvOrgProvider.clearCache()
         } else {
-            channelsCache[countryCode]?.let { return@withContext it }
-        }
-
-        val cachedDbChannels = cachedChannelDao.getChannelsByCountry(countryCode)
-        if (cachedDbChannels.isNotEmpty()) {
-            val channels = cachedDbChannels.map { Channel(it.name, it.logo, it.url) }
-            channelsCache[countryCode] = channels
-            return@withContext channels
-        }
-
-        val rawChannels = getSpanishRawChannels()
-        if (rawChannels.isEmpty()) return@withContext emptyList()
-
-        val matchingChannels = rawChannels.filter { raw ->
-            raw.country == countryCode || (raw.country.isEmpty() && raw.cleanId.endsWith(".$countryCode"))
-        }.map { Channel(it.name, it.logo, it.url) }.distinctBy { it.url }
-
-        val workingChannels = matchingChannels.map { channel ->
-            async {
-                if (isStreamWorking(channel.url)) channel else null
+            channelsCache[normalizedCode]?.let { return@withContext it }
+            val cachedDbChannels = cachedChannelDao.getChannelsByCountry(normalizedCode)
+            if (cachedDbChannels.isNotEmpty()) {
+                val channels = cachedDbChannels.map { Channel(it.name, it.logo, it.url, it.countryCode) }
+                channelsCache[normalizedCode] = channels
+                return@withContext channels
             }
-        }.awaitAll().filterNotNull()
-
-        val finalChannels = if (workingChannels.isNotEmpty()) workingChannels else matchingChannels
-
-        val entitiesToSave = finalChannels.map { 
-            CachedChannel(it.url, it.name, it.logo, countryCode)
         }
-        cachedChannelDao.insertChannels(entitiesToSave)
 
-        channelsCache[countryCode] = finalChannels
-        return@withContext finalChannels
+        val resultChannels = mutableListOf<Channel>()
+
+        if (normalizedCode == "es") {
+            // Para España: TDTChannels oficiales + Pluto TV España + IPTV-Org España
+            val tdtDeferred = async { tdtChannelsProvider.fetchChannels() }
+            val plutoDeferred = async { plutoTvProvider.fetchChannels() }
+            val orgDeferred = async { iptvOrgProvider.fetchChannelsByCountry("es") }
+
+            val tdt = tdtDeferred.await()
+            val pluto = plutoDeferred.await()
+            val org = orgDeferred.await()
+
+            resultChannels.addAll(tdt)
+            resultChannels.addAll(pluto)
+            resultChannels.addAll(org)
+        } else {
+            // Para cualquier otro país (Ecuador, Rep. Dominicana, Perú, México, etc.):
+            // Canal oficial exclusivo del país sin mezclas extranjeras
+            val countryChannels = iptvOrgProvider.fetchChannelsByCountry(normalizedCode)
+            resultChannels.addAll(countryChannels)
+        }
+
+        // Filtrar canales no hispanos, geobloqueados o cadenas panregionales de cable y desduplicar
+        val distinctList = resultChannels
+            .filter { ch -> 
+                !Constants.isForeignOrBlocked(ch.name, ch.url) &&
+                !Constants.isPanRegionalThematicChannel(ch.name, ch.url)
+            }
+            .distinctBy { Constants.normalizeChannelName(it.name) }
+            .sortedWith(
+                compareBy<Channel> { ch ->
+                    // Priorizar transmisiones 24/7 activas al inicio de la lista
+                    if (ch.name.contains("[not 24/7]", ignoreCase = true) || ch.name.contains("(not 24/7)", ignoreCase = true)) 1 else 0
+                }.thenBy { it.name }
+            )
+
+        if (distinctList.isNotEmpty()) {
+            val entitiesToSave = distinctList.map { 
+                CachedChannel(it.url, it.name, it.logo, normalizedCode)
+            }
+            cachedChannelDao.insertChannels(entitiesToSave)
+            channelsCache[normalizedCode] = distinctList
+        }
+
+        return@withContext distinctList
     }
 
     suspend fun getChannelsByCategory(categoryKey: String, forceRefresh: Boolean = false): List<Channel> = withContext(Dispatchers.IO) {
+        val normalizedKey = categoryKey.lowercase()
         if (forceRefresh) {
-            channelsCache.remove(categoryKey)
-            cachedChannelDao.deleteChannelsByCountry(categoryKey)
+            channelsCache.remove(normalizedKey)
+            cachedChannelDao.deleteChannelsByCountry(normalizedKey)
+            tdtChannelsProvider.clearCache()
+            plutoTvProvider.clearCache()
+            iptvOrgProvider.clearCache()
         } else {
-            channelsCache[categoryKey]?.let { return@withContext it }
-        }
-
-        val cachedDbChannels = cachedChannelDao.getChannelsByCountry(categoryKey)
-        if (cachedDbChannels.isNotEmpty()) {
-            val channels = cachedDbChannels.map { Channel(it.name, it.logo, it.url) }
-            channelsCache[categoryKey] = channels
-            return@withContext channels
-        }
-
-        val rawChannels = getSpanishRawChannels()
-        if (rawChannels.isEmpty()) return@withContext emptyList()
-
-        val categoryKeywords = when (categoryKey) {
-            "sports" -> listOf("sports", "deporte")
-            "news" -> listOf("news", "noticia")
-            "movies" -> listOf("movie", "cine", "película", "pelicula", "film")
-            "series" -> listOf("series", "serie")
-            "animation" -> listOf("kids", "animation", "infantil", "dibujos", "family")
-            "music" -> listOf("music", "música", "musica")
-            else -> listOf(categoryKey)
-        }
-
-        val matchingChannels = rawChannels.filter { raw ->
-            val isForeign = isForeignChannel(raw.name)
-            !isForeign && categoryKeywords.any { raw.groupTitle.contains(it) }
-        }.map { Channel(it.name, it.logo, it.url) }.distinctBy { it.url }
-
-        val workingChannels = matchingChannels.map { channel ->
-            async {
-                if (isStreamWorking(channel.url)) channel else null
+            channelsCache[normalizedKey]?.let { return@withContext it }
+            val cachedDbChannels = cachedChannelDao.getChannelsByCountry(normalizedKey)
+            if (cachedDbChannels.isNotEmpty()) {
+                val channels = cachedDbChannels.map { Channel(it.name, it.logo, it.url, it.countryCode) }
+                channelsCache[normalizedKey] = channels
+                return@withContext channels
             }
-        }.awaitAll().filterNotNull()
-
-        val finalChannels = if (workingChannels.isNotEmpty()) workingChannels else matchingChannels
-
-        val entitiesToSave = finalChannels.map { 
-            CachedChannel(it.url, it.name, it.logo, categoryKey)
         }
-        cachedChannelDao.insertChannels(entitiesToSave)
 
-        channelsCache[categoryKey] = finalChannels
-        return@withContext finalChannels
-    }
+        fun matchesCategory(ch: Channel, catKey: String): Boolean {
+            val cat = ch.category.lowercase()
+            val name = ch.name.lowercase()
 
-    private fun isForeignChannel(name: String): Boolean {
-        return name.contains("(Sweden)", ignoreCase = true) ||
-                name.contains("(India)", ignoreCase = true) ||
-                name.contains("(Pakistan)", ignoreCase = true) ||
-                name.contains("(Turkiye)", ignoreCase = true) ||
-                name.contains("(Turkey)", ignoreCase = true) ||
-                name.contains("(Arabic)", ignoreCase = true) ||
-                name.contains("(Germany)", ignoreCase = true) ||
-                name.contains("(Italy)", ignoreCase = true) ||
-                name.contains("(United Kingdom)", ignoreCase = true) ||
-                name.contains("(France)", ignoreCase = true) ||
-                name.contains("(Russia)", ignoreCase = true) ||
-                name.contains("(Japan)", ignoreCase = true) ||
-                name.contains("(Korea)", ignoreCase = true) ||
-                name.contains("(China)", ignoreCase = true)
-    }
-
-    private suspend fun isStreamWorking(urlString: String): Boolean = withContext(Dispatchers.IO) {
-        pingSemaphore.acquire()
-        try {
-            val isHls = urlString.contains(".m3u8", ignoreCase = true)
-            val requestBuilder = Request.Builder()
-                .url(urlString)
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-                .header("Accept", "*/*")
-            
-            if (!isHls) {
-                requestBuilder.header("Range", "bytes=0-1024")
+            return when (catKey) {
+                "series" -> {
+                    // Excluir canales generalistas de TV nacional, noticias, radios, deportes o religión
+                    if (cat.contains("general") || cat.contains("news") || cat.contains("noticia") ||
+                        cat.contains("sports") || cat.contains("deporte") || cat.contains("music") ||
+                        cat.contains("música") || cat.contains("religious") || cat.contains("shop") ||
+                        name.contains("radio") || name.contains("estereo") || name.contains("estéreo") || name.contains("fm")
+                    ) {
+                        false
+                    } else {
+                        val isSeriesCat = cat.contains("series") || cat.contains("telenovela") || cat.contains("novelas") || cat.contains("drama")
+                        val isSeriesName = name.contains("series") || name.contains("telenovela") || name.contains("novela") ||
+                                name.contains("tnt series") || name.contains("comedy central") || name.contains("syfy")
+                        isSeriesCat || isSeriesName
+                    }
+                }
+                "movies" -> {
+                    if (cat.contains("general") || cat.contains("news") || cat.contains("noticia") ||
+                        cat.contains("sports") || cat.contains("music") || cat.contains("música") ||
+                        cat.contains("religious") || name.contains("radio") || name.contains("estereo")
+                    ) {
+                        false
+                    } else {
+                        val isMovieCat = cat.contains("movie") || cat.contains("cine") || cat.contains("pelicula") || cat.contains("película")
+                        val isMovieName = name.contains("cine") || name.contains("película") || name.contains("pelicula") ||
+                                name.contains("cinema") || name.contains("movies") || name.contains("axn") ||
+                                name.contains("cinecanal") || name.contains("cinemax") || name.contains("hbo") ||
+                                name.contains("golden") || name.contains("space") || name.contains("star channel") ||
+                                name.contains("de pelicula") || name.contains("paramount channel")
+                        isMovieCat || isMovieName
+                    }
+                }
+                "sports" -> {
+                    if (cat.contains("general") || cat.contains("news") || cat.contains("music") || cat.contains("religious")) {
+                        false
+                    } else {
+                        val isSportsCat = cat.contains("sports") || cat.contains("deport") || cat.contains("futbol") || cat.contains("fútbol")
+                        val isSportsName = name.contains("deporte") || name.contains("sports") || name.contains("sport") ||
+                                name.contains("futbol") || name.contains("fútbol") || name.contains("teledeporte") ||
+                                name.contains("gol") || name.contains("tudn") || name.contains("espn") ||
+                                name.contains("fox sports") || name.contains("racing") || name.contains("motor") ||
+                                name.contains("laliga") || name.contains("dsports") || name.contains("directv") ||
+                                name.contains("tyc sports") || name.contains("claro sports")
+                        isSportsCat || isSportsName
+                    }
+                }
+                "news" -> {
+                    if (cat.contains("general") || cat.contains("music") || cat.contains("sports") || cat.contains("religious")) {
+                        false
+                    } else {
+                        val isNewsCat = cat.contains("news") || cat.contains("noticia") || cat.contains("informativ") || cat.contains("weather")
+                        val isNewsName = name.contains("noticia") || name.contains("news") || name.contains("24h") ||
+                                name.contains("informativo") || name.contains("noticiero") || name.contains("euronews") ||
+                                name.contains("cnn") || name.contains("actualidad")
+                        isNewsCat || isNewsName
+                    }
+                }
+                "animation" -> {
+                    if (cat.contains("general") || cat.contains("news") || cat.contains("music") || cat.contains("sports") || cat.contains("religious")) {
+                        false
+                    } else {
+                        val isKidsCat = cat.contains("animation") || cat.contains("kids") || cat.contains("infantil") || cat.contains("dibujos")
+                        val isKidsName = name.contains("infantil") || name.contains("kids") || name.contains("dibujos") ||
+                                name.contains("cartoon") || name.contains("disney") || name.contains("nick") ||
+                                name.contains("clan") || name.contains("boing") || name.contains("cartoonito") ||
+                                name.contains("boomerang") || name.contains("anime")
+                        isKidsCat || isKidsName
+                    }
+                }
+                "music" -> {
+                    if (cat.contains("news") || cat.contains("sports") || cat.contains("religious")) {
+                        false
+                    } else {
+                        val isMusicCat = cat.contains("music") || cat.contains("música") || cat.contains("musica")
+                        val isMusicName = name.contains("música") || name.contains("musica") || name.contains("music") ||
+                                name.contains("hit") || name.contains("hits") || name.contains("radio") ||
+                                name.contains("urban") || name.contains("pop") || name.contains("rock") ||
+                                name.contains("clip") || name.contains("dance") || name.contains("reggaeton") ||
+                                name.contains("mtv") || name.contains("fabulosa estereo")
+                        isMusicCat || isMusicName
+                    }
+                }
+                else -> cat.contains(catKey) || name.contains(catKey)
             }
-            
-            val request = requestBuilder.get().build()
-            val response = pingOkHttpClient.newCall(request).execute()
-            val code = response.code
-            val isSuccess = response.isSuccessful || code == 206 || code in 300..308
-            response.close()
-            isSuccess
-        } catch (e: Exception) {
-            false
-        } finally {
-            pingSemaphore.release()
         }
+
+        // Carga enriquecida: todo el catálogo en español (spa.m3u) + canales temáticos de TDT y Pluto
+        val spanishAllDeferred = async { iptvOrgProvider.fetchSpanishChannels() }
+        val tdtDeferred = async { tdtChannelsProvider.fetchChannels() }
+        val plutoDeferred = async { plutoTvProvider.fetchChannels() }
+
+        val spanishChannels = spanishAllDeferred.await()
+        val tdtChannels = tdtDeferred.await()
+        val plutoChannels = plutoDeferred.await()
+
+        val allCandidates = ArrayList<Channel>(spanishChannels.size + tdtChannels.size + plutoChannels.size)
+
+        // Canales temáticos filtrados rigurosamente por su categoría real
+        allCandidates.addAll(tdtChannels.filter { matchesCategory(it, normalizedKey) })
+        allCandidates.addAll(plutoChannels.filter { matchesCategory(it, normalizedKey) })
+        allCandidates.addAll(spanishChannels.filter { matchesCategory(it, normalizedKey) })
+
+        val filtered = allCandidates.filter { ch ->
+            !Constants.isForeignOrBlocked(ch.name, ch.url) && ch.url.isNotBlank()
+        }
+        .distinctBy { it.url.trim().lowercase() }
+        .distinctBy { Constants.normalizeChannelName(it.name) }
+        .sortedWith(
+            compareBy<Channel> { ch ->
+                if (ch.name.contains("[not 24/7]", ignoreCase = true) || ch.name.contains("(not 24/7)", ignoreCase = true)) 1 else 0
+            }.thenBy { it.name }
+        )
+
+        if (filtered.isNotEmpty()) {
+            val entitiesToSave = filtered.map { 
+                CachedChannel(it.url, it.name, it.logo, normalizedKey)
+            }
+            cachedChannelDao.insertChannels(entitiesToSave)
+            channelsCache[normalizedKey] = filtered
+        }
+
+        return@withContext filtered
     }
 
     suspend fun detectCountryFromIp(): String? = withContext(Dispatchers.IO) {
@@ -283,7 +283,7 @@ class ChannelRepository @Inject constructor(
             } else {
                 response.close()
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             try {
                 val request2 = Request.Builder()
                     .url("http://ip-api.com/json/?fields=countryCode")
@@ -298,7 +298,7 @@ class ChannelRepository @Inject constructor(
                 } else {
                     response2.close()
                 }
-            } catch (e2: Exception) {}
+            } catch (_: Exception) {}
         }
         return@withContext null
     }

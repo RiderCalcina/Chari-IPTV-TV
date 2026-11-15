@@ -46,7 +46,19 @@ import coil.request.ImageRequest
 import com.example.chariiptv.domain.Channel
 import com.example.chariiptv.theme.TvPrimary
 import com.example.chariiptv.theme.TvPrimaryFocused
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.delay
+import okhttp3.OkHttpClient
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface PlayerEntryPoint {
+    fun localHlsProxyServer(): LocalHlsProxyServer
+    fun okHttpClient(): OkHttpClient
+}
 
 @Composable
 fun ExoPlayerView(
@@ -58,20 +70,40 @@ fun ExoPlayerView(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    val playerDependencies = remember(context) {
+        try {
+            EntryPointAccessors.fromApplication(context.applicationContext, PlayerEntryPoint::class.java)
+        } catch (_: Exception) {
+            null
+        }
+    }
+    val okHttpClient = playerDependencies?.okHttpClient()
+    val localProxyServer = playerDependencies?.localHlsProxyServer()
+
     var isBuffering by remember { mutableStateOf(true) }
     var isError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
     var retryCount by remember { mutableIntStateOf(0) }
+    var autoRetryCount by remember(channel.url) { mutableIntStateOf(0) }
+    var useProxyFallback by remember(channel.url) { mutableStateOf(false) }
     val retryFocusRequester = remember { FocusRequester() }
 
     BackHandler {
         onClose()
     }
 
+    val activeStreamUrl = remember(channel.url, useProxyFallback, retryCount) {
+        if (useProxyFallback && localProxyServer != null) {
+            localProxyServer.buildProxyUrl(channel.url)
+        } else {
+            channel.url
+        }
+    }
+
     // 1. Instancia optimizada de ExoPlayer con FFmpeg y política de reintentos inteligente
-    val exoPlayer = remember(channel.url, retryCount) {
-        PlayerBuilder.build(context).apply {
-            setMediaItem(MediaItem.fromUri(channel.url))
+    val exoPlayer = remember(activeStreamUrl, retryCount) {
+        PlayerBuilder.build(context, okHttpClient).apply {
+            setMediaItem(MediaItem.fromUri(activeStreamUrl))
             prepare()
             playWhenReady = true
         }
@@ -86,6 +118,7 @@ fun ExoPlayerView(
                     Player.STATE_READY -> {
                         isBuffering = false
                         isError = false
+                        autoRetryCount = 0
                     }
                     Player.STATE_ENDED -> isBuffering = false
                     Player.STATE_IDLE -> {}
@@ -94,6 +127,36 @@ fun ExoPlayerView(
 
             override fun onPlayerError(error: PlaybackException) {
                 super.onPlayerError(error)
+                if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
+                    // Recuperar el directo automáticamente si hubo un pequeño corte de paquetes
+                    exoPlayer.seekToDefaultPosition()
+                    exoPlayer.prepare()
+                    exoPlayer.play()
+                    return
+                }
+
+                // Autorrecuperación rápida en vivo si hay microcorte de red
+                if (autoRetryCount < 2) {
+                    autoRetryCount++
+                    isBuffering = true
+                    try {
+                        exoPlayer.seekToDefaultPosition()
+                        exoPlayer.prepare()
+                        exoPlayer.play()
+                    } catch (_: Exception) {}
+                    return
+                }
+
+                val isGeoblocked = isGeoBlockedError(error)
+
+                if (!useProxyFallback && localProxyServer != null && isGeoblocked) {
+                    // Activación selectiva y exclusiva de VPN / proxy ante geobloqueo confirmado (HTTP 403 / 451)
+                    useProxyFallback = true
+                    isBuffering = true
+                    isError = false
+                    return
+                }
+
                 isBuffering = false
                 isError = true
                 errorMessage = when (error.errorCode) {
@@ -148,7 +211,7 @@ fun ExoPlayerView(
         isBuffering = true
         isError = false
         errorMessage = ""
-        delay(14_000)
+        delay(20_000)
         if (isBuffering && !isError) {
             isBuffering = false
             isError = true
@@ -214,12 +277,6 @@ fun ExoPlayerView(
                     color = Color.White,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Cargando señal con decodificador de audio universal",
-                    color = Color.LightGray,
-                    fontSize = 12.sp
                 )
             }
         }
@@ -378,3 +435,21 @@ fun ExoPlayerView(
         }
     }
 }
+
+private fun isGeoBlockedError(error: PlaybackException): Boolean {
+    var cause: Throwable? = error.cause
+    while (cause != null) {
+        if (cause is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
+            val code = cause.responseCode
+            if (code == 403 || code == 451) {
+                return true
+            }
+        }
+        cause = cause.cause
+    }
+    val msg = (error.message ?: "").lowercase()
+    val causeMsg = (error.cause?.message ?: "").lowercase()
+    return msg.contains("403") || msg.contains("geoblock") || msg.contains("geo-block") ||
+            causeMsg.contains("403") || causeMsg.contains("geoblock") || causeMsg.contains("geo-block")
+}
+
