@@ -2,6 +2,7 @@ package com.example.chariiptv
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -58,6 +59,16 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
 
     private val tvViewModel: TvViewModel by viewModels()
+
+    // Interceptor directo a nivel de actividad para eventos del control remoto en reproducción
+    var playerKeyHandler: ((KeyEvent) -> Boolean)? = null
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (playerKeyHandler?.invoke(event) == true) {
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

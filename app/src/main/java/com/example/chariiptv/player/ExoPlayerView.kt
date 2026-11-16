@@ -50,6 +50,7 @@ import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
+import com.example.chariiptv.MainActivity
 import com.example.chariiptv.R
 import com.example.chariiptv.domain.Channel
 import com.example.chariiptv.presentation.components.QuickChannelDrawer
@@ -83,6 +84,7 @@ fun ExoPlayerView(
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
+    val activity = context as? MainActivity
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val playerDependencies = remember(context) {
@@ -123,6 +125,76 @@ fun ExoPlayerView(
         }
     }
 
+    val channelsList = remember(categoryChannels, channel) {
+        if (categoryChannels.isNotEmpty()) categoryChannels else listOf(channel)
+    }
+
+    // Interceptor directo a nivel de actividad para eventos del control remoto
+    // Garantiza que el D-Pad Izquierda abra SIEMPRE el cajón lateral sin depender del foco de AndroidView
+    DisposableEffect(activity, isSideDrawerVisible, channelsList, channel.url) {
+        activity?.playerKeyHandler = { event ->
+            val keyCode = event.keyCode
+            val isActionDown = event.action == KeyEvent.ACTION_DOWN
+
+            if (!isSideDrawerVisible) {
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        if (isActionDown && event.repeatCount == 0) {
+                            if (channelsList.isNotEmpty()) {
+                                isSideDrawerVisible = true
+                                isHudVisible = false
+                            }
+                        }
+                        true
+                    }
+                    KeyEvent.KEYCODE_DPAD_UP -> {
+                        if (isActionDown && event.repeatCount == 0) {
+                            onToggleFavorite()
+                        }
+                        true
+                    }
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                        if (isActionDown && event.repeatCount == 0) {
+                            isHudVisible = !isHudVisible
+                            hudInteractionTrigger = System.currentTimeMillis()
+                        }
+                        true
+                    }
+                    else -> false
+                }
+            } else {
+                // El cajón lateral de canales está abierto
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        if (isActionDown && event.repeatCount == 0) {
+                            isSideDrawerVisible = false
+                        }
+                        true
+                    }
+                    KeyEvent.KEYCODE_BACK -> {
+                        if (event.action == KeyEvent.ACTION_UP) {
+                            isSideDrawerVisible = false
+                        }
+                        true
+                    }
+                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        true // Consumir para no rebotar
+                    }
+                    // Permitir que D-Pad Arriba, Abajo, y OK/Enter fluyan al LazyColumn del cajón para navegar
+                    KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                        false
+                    }
+                    else -> false
+                }
+            }
+        }
+
+        onDispose {
+            activity?.playerKeyHandler = null
+        }
+    }
+
     LaunchedEffect(hudInteractionTrigger) {
         isHudVisible = true
         delay(5000)
@@ -136,7 +208,7 @@ fun ExoPlayerView(
         }
     }
 
-    // Si el drawer lateral está abierto, la tecla Atrás cierra el drawer en vez de salir de la app
+    // Respaldo de navegación con la tecla Atrás
     BackHandler(enabled = isSideDrawerVisible) {
         isSideDrawerVisible = false
     }
@@ -290,32 +362,6 @@ fun ExoPlayerView(
             },
             update = { view ->
                 view.player = exoPlayer
-                view.setOnKeyListener { _, keyCode, event ->
-                    if (event.action == KeyEvent.ACTION_UP) {
-                        hudInteractionTrigger = System.currentTimeMillis()
-                        when (keyCode) {
-                            KeyEvent.KEYCODE_DPAD_LEFT -> {
-                                if (categoryChannels.isNotEmpty()) {
-                                    isSideDrawerVisible = !isSideDrawerVisible
-                                    true
-                                } else {
-                                    false
-                                }
-                            }
-                            KeyEvent.KEYCODE_DPAD_UP -> {
-                                onToggleFavorite()
-                                true
-                            }
-                            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                                isHudVisible = !isHudVisible
-                                true
-                            }
-                            else -> false
-                        }
-                    } else {
-                        false
-                    }
-                }
             }
         )
 
@@ -463,7 +509,7 @@ fun ExoPlayerView(
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     // Atajo Lista de Canales [◀]
-                    if (categoryChannels.isNotEmpty()) {
+                    if (channelsList.isNotEmpty()) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(5.dp)
@@ -541,7 +587,7 @@ fun ExoPlayerView(
             modifier = Modifier.align(Alignment.CenterStart)
         ) {
             QuickChannelDrawer(
-                channels = categoryChannels,
+                channels = channelsList,
                 currentChannelUrl = channel.url,
                 categoryTitle = categoryTitle,
                 favorites = favorites,

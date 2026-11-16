@@ -20,7 +20,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -54,17 +53,29 @@ fun QuickChannelDrawer(
         if (idx >= 0) idx else 0
     }
 
-    val listState = rememberLazyListState(
-        initialFirstVisibleItemIndex = maxOf(0, currentIndex - 2)
-    )
+    val listState = rememberLazyListState()
 
-    val currentChannelFocusRequester = remember { FocusRequester() }
+    val targetFocusRequester = remember { FocusRequester() }
+    val firstItemFocusRequester = remember { FocusRequester() }
 
-    LaunchedEffect(Unit) {
-        delay(120)
-        try {
-            currentChannelFocusRequester.requestFocus()
-        } catch (_: Exception) {}
+    LaunchedEffect(channels, currentChannelUrl) {
+        if (currentIndex > 0) {
+            try {
+                listState.scrollToItem(maxOf(0, currentIndex - 1))
+            } catch (_: Exception) {}
+        }
+        for (delayMs in listOf(40L, 120L, 250L, 400L)) {
+            delay(delayMs)
+            try {
+                targetFocusRequester.requestFocus()
+                break
+            } catch (_: Exception) {
+                try {
+                    firstItemFocusRequester.requestFocus()
+                    break
+                } catch (_: Exception) {}
+            }
+        }
     }
 
     Box(
@@ -72,7 +83,7 @@ fun QuickChannelDrawer(
             .fillMaxHeight()
             .width(340.dp)
             .shadow(elevation = 24.dp, spotColor = Color.Black)
-            .background(TvBackground.copy(alpha = 0.92f))
+            .background(TvBackground.copy(alpha = 0.94f))
             .border(
                 BorderStroke(1.dp, Color(0x33FFFFFF)),
                 RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
@@ -153,10 +164,22 @@ fun QuickChannelDrawer(
                 ) { index, channel ->
                     val isPlaying = channel.url == currentChannelUrl
                     val isFav = favorites.contains(channel.url)
-                    val isTargetChannel = index == currentIndex
+                    val isTarget = index == currentIndex
+
+                    val focusMod = when {
+                        isTarget -> Modifier.focusRequester(targetFocusRequester)
+                        index == 0 -> Modifier.focusRequester(firstItemFocusRequester)
+                        else -> Modifier
+                    }
 
                     Surface(
-                        onClick = { onChannelSelected(channel) },
+                        onClick = {
+                            if (isPlaying) {
+                                onClose()
+                            } else {
+                                onChannelSelected(channel)
+                            }
+                        },
                         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(10.dp)),
                         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
                         border = ClickableSurfaceDefaults.border(
@@ -175,20 +198,7 @@ fun QuickChannelDrawer(
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .then(
-                                if (isTargetChannel) Modifier.focusRequester(currentChannelFocusRequester)
-                                else Modifier
-                            )
-                            .onKeyEvent { keyEvent ->
-                                if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_UP &&
-                                    keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
-                                ) {
-                                    onClose()
-                                    true
-                                } else {
-                                    false
-                                }
-                            }
+                            .then(focusMod)
                     ) {
                         Row(
                             modifier = Modifier
