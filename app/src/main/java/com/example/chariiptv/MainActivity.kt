@@ -658,17 +658,17 @@ fun ChannelGrid(
                         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(12.dp)),
                         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.10f),
                         border = ClickableSurfaceDefaults.border(
-                            border = Border(BorderStroke(1.dp, Color(0x2E000000))),
-                            focusedBorder = Border(BorderStroke(3.5.dp, Color(0xFF2563EB)))
+                            border = Border(BorderStroke(1.dp, Color(0x33FFFFFF))),
+                            focusedBorder = Border(BorderStroke(3.5.dp, Color.White))
                         ),
                         colors = ClickableSurfaceDefaults.colors(
-                            containerColor = Color(0xFFE5E7EB),
-                            focusedContainerColor = Color(0xFFF3F4F6)
+                            containerColor = Color(0xFF1E293B),
+                            focusedContainerColor = Color(0xFF2563EB)
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .aspectRatio(16f/11f)
-                            .shadow(elevation = 8.dp, shape = RoundedCornerShape(12.dp), spotColor = Color(0x35000000))
+                            .shadow(elevation = 8.dp, shape = RoundedCornerShape(12.dp), spotColor = Color(0x55000000))
                     ) {
                         Box(modifier = Modifier.fillMaxSize()) {
                             Column(
@@ -703,7 +703,7 @@ fun ChannelGrid(
                                 }
                                 Text(
                                     text = channel.name,
-                                    color = Color(0xFF0F172A),
+                                    color = Color.White,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     textAlign = TextAlign.Center,
@@ -716,14 +716,14 @@ fun ChannelGrid(
                                     .align(Alignment.TopEnd)
                                     .padding(6.dp)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(if (isFav) Color(0x44F59E0B) else Color(0x1F000000))
+                                    .background(if (isFav) Color(0x55F59E0B) else Color(0x33000000))
                                     .clickable { onToggleFavorite(channel) }
                                     .padding(horizontal = 6.dp, vertical = 4.dp)
                             ) {
                                 androidx.compose.material3.Text(
                                     text = if (isFav) "⭐" else "☆",
                                     fontSize = 13.sp,
-                                    color = if (isFav) Color(0xFFD97706) else Color(0xFF64748B)
+                                    color = if (isFav) Color(0xFFFBBF24) else Color(0xFF94A3B8)
                                 )
                             }
                         }

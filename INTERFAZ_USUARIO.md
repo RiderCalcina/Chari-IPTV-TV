@@ -45,15 +45,16 @@ En la parte superior se presentan botones interactivos estilo tarjeta refinada (
 ## 3. Grilla de Canales (Channel Grid)
 - **Distribución:** Es una cuadrícula (`TvLazyVerticalGrid`) organizada en **4 columnas** fijas.
 - **Tarjetas de Canal (Cards):** Cada canal está representado por una tarjeta rectangular (proporción 16:11).
-  - *Color de Fondo:* Gris neutro / piedra claro (`#E5E7EB`). Al enfocar con el control remoto, el fondo conmuta a un gris más claro brillante (`#F3F4F6`).
-  - *Sombra y Bordes:* Elevación de 8dp (`shadow(8.dp)`) con sombra oscura perimétrica (`#35000000`) y borde de foco azul brillante (`#2563EB`) de 3.5dp de grosor.
+  - *Color de Fondo en Reposo:* Tono oscuro slate (`#1E293B`) que se integra de manera armónica en el entorno nocturno y de sala de estar.
+  - *Cambio Dinámico al Enfocar (Focus):* Al posicionar el cursor del control remoto encima, el fondo de la tarjeta conmuta de inmediato a **azul real brillante (`#2563EB`)**, iluminando por completo el elemento activo.
+  - *Sombra y Bordes:* En reposo muestra un borde sutil translúcido (`#33FFFFFF`) de 1dp con elevación de 8dp. Al enfocar, se activa un **borde blanco grueso de 3.5dp de grosor (`Color.White`)** y una escala aumentada al **110% (`focusedScale = 1.10f`)**, permitiendo al usuario identificar de un solo vistazo y con total certeza dónde se encuentra ubicado en la cuadrícula.
   - *Logo:* Muestra el logotipo del canal centrado con ajuste proporcional (`ContentScale.Fit`). Utiliza Coil con soporte SVG (`coil-svg`) y cabeceras de navegador de escritorio. Si el canal no dispone de logotipo público o el enlace está roto (404), muestra el logotipo oficial por defecto de TV (`default_tv.png`).
-  - *Nombre:* El nombre del canal aparece centrado abajo del logo, con tipografía oscura de alto contraste (`#0F172A`) y truncado a un máximo de 2 líneas.
+  - *Nombre:* El nombre del canal aparece centrado abajo del logo, con tipografía en color blanco puro (`Color.White`), nítida y legible tanto en reposo como enfocada, truncada a un máximo de 2 líneas.
 - **Indicador de Favorito:** En la esquina superior derecha de cada tarjeta hay un botón circular con una estrella (`⭐` si es favorito o `☆` si no lo es). Para marcar o desmarcar un canal como favorito, se puede hacer clic directamente sobre la estrella o **mantener presionado el botón OK** (D-Pad Center) del control remoto (Long Press). Aparecerá una notificación animada en la pantalla confirmando la acción (⭐ Añadido a favoritos o ☆ Eliminado de favoritos).
 - **Efectos de Foco (Hover):** Cuando se navega con el control remoto sobre una tarjeta:
-  - La tarjeta aumenta ligeramente su tamaño (`focusedScale = 1.10f`).
-  - Se ilumina con un borde azul de 3.5dp de grosor.
-  - El fondo cambia al tono claro enfocado (`#F3F4F6`).
+  - La tarjeta aumenta de tamaño (`focusedScale = 1.10f`).
+  - El fondo conmuta drásticamente de `#1E293B` a `#2563EB`.
+  - Se ilumina con un marco perimétrico blanco de 3.5dp.
 - **Estado Vacío Intuitivo:** Si la categoría o la pestaña Favoritos no tiene canales, muestra un diseño explicativo limpio indicando cómo agregar canales preferidos mediante el ícono de estrella.
 - **Preservación de Foco:** Al regresar a la grilla tras reproducir un canal, la vista recuerda su estado y restaura el foco en el último canal seleccionado gracias a `focusRestorer()`.
 
