@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Plus+Jakarta+Sans:wght@100..900&display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}@keyframes marqueeLinear{0%{transform:translateX(0%);}100%{transform:translateX(-50%);}}.animate-marquee{display:inline-flex;white-space:nowrap;animation:marqueeLinear 32s linear infinite;}.animate-marquee:hover{animation-play-state:paused;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "on-tertiary-fixed": "#360f00", "surface-dim": "#0f131c", "surface-container-lowest": "#0a0e17", "primary": "#b4c5ff", "secondary": "#ffb95f", "on-primary-fixed-variant": "#003ea8", "on-error-container": "#ffdad6", "surface": "#0f131c", "on-tertiary": "#581e00", "outline-variant": "#434655", "secondary-fixed-dim": "#ffb95f", "on-primary": "#002a78", "on-tertiary-fixed-variant": "#7d2d00", "surface-tint": "#b4c5ff", "error-container": "#93000a", "inverse-primary": "#0053db", "surface-container-high": "#262a34", "surface-container": "#1c1f29", "background": "#0f131c", "secondary-fixed": "#ffddb8", "on-secondary-fixed": "#2a1700", "tertiary-fixed": "#ffdbcd", "on-background": "#dfe2ef", "on-tertiary-container": "#ffede6", "tertiary": "#ffb596", "tertiary-fixed-dim": "#ffb596", "primary-container": "#2563eb", "inverse-on-surface": "#2c303a", "on-secondary-fixed-variant": "#653e00", "on-surface": "#dfe2ef", "primary-fixed-dim": "#b4c5ff", "on-primary-container": "#eeefff", "on-secondary-container": "#5b3800", "on-secondary": "#472a00", "tertiary-container": "#bc4800", "outline": "#8d90a0", "inverse-surface": "#dfe2ef", "primary-fixed": "#dbe1ff", "error": "#ffb4ab", "surface-bright": "#353943", "on-error": "#690005", "on-surface-variant": "#c3c6d7", "surface-container-highest": "#31353f", "surface-container-low": "#181b25", "secondary-container": "#ee9800", "on-primary-fixed": "#00174b", "surface-variant": "#31353f" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "space-sm": "0.75rem", "margin": "3.5rem", "space-lg": "2rem", "space-md": "1.25rem", "gutter-tv": "2rem", "gutter": "1.5rem", "space-xs": "0.375rem", "margin-tv-safe": "4rem", "space-xl": "3rem" }, "fontFamily": { "ticker-text": ["Inter"], "title-md": ["Inter"], "body-md": ["Inter"], "headline-md": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"], "label-lg": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "display-tv": ["Plus Jakarta Sans"], "headline-sm": ["Plus Jakarta Sans"], "body-lg": ["Inter"] }, "fontSize": { "ticker-text": ["15px", { "lineHeight": "20px", "fontWeight": "500" }], "title-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }], "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }], "headline-md": ["32px", { "lineHeight": "40px", "fontWeight": "700" }], "headline-lg": ["40px", { "lineHeight": "48px", "fontWeight": "700" }], "label-lg": ["14px", { "lineHeight": "20px", "fontWeight": "700" }], "label-md": ["12px", { "lineHeight": "16px", "fontWeight": "700" }], "display-tv": ["56px", { "lineHeight": "64px", "fontWeight": "800" }], "headline-sm": ["24px", { "lineHeight": "32px", "fontWeight": "600" }], "body-lg": ["18px", { "lineHeight": "26px", "fontWeight": "500" }] } } } };</script></head><body class="bg-surface font-body-md text-on-surface antialiased select-none"><header class="fixed top-0 left-0 right-0 z-50 bg-surface/90 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.5)]"><div class="h-28 w-full px-margin-tv-safe flex flex-col justify-between pt-4 pb-2"><div class="flex items-center justify-between gap-4"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-primary text-[28px]">tv_gen</span><span class="font-headline-sm text-headline-sm font-bold tracking-tight text-on-surface">Chari<span class="text-primary">IPTV</span></span></div><div class="flex items-center gap-space-xs px-2.5 py-1 rounded bg-surface-container-high"><span class="w-2 h-2 rounded-full bg-error animate-ping"></span><span class="font-label-md text-label-md text-on-surface tracking-wider uppercase">4K UHD</span></div></div><div class="flex items-center gap-space-lg"><div class="flex items-center gap-space-xs px-3 py-1 rounded-full bg-surface-container"><span class="material-symbols-outlined text-outline text-[18px]">wifi</span><span class="font-label-md text-label-md text-on-surface-variant">5G • 120 Mbps</span></div><div class="flex items-center gap-space-xs px-3 py-1 rounded-full bg-surface-container-high"><span class="material-symbols-outlined text-secondary text-[18px]">gamepad</span><span class="font-label-md text-label-md text-on-surface-variant">D-Pad Activo</span></div><div class="flex items-center gap-space-xs"><span class="font-label-lg text-label-lg text-on-surface tracking-wide">20:45</span></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div><nav class="flex items-center gap-2 overflow-x-auto py-1" data-active-classes="bg-primary-container text-on-primary-container ring-2 ring-primary shadow-[0_0_20px_rgba(37,99,235,0.45)]"><a aria-current="page" class="px-4 py-1.5 rounded-full font-label-md transition-all whitespace-nowrap bg-primary-container text-on-primary-container ring-2 ring-primary shadow-[0_0_20px_rgba(37,99,235,0.45)]" data-path="favoritos" href="#">⭐ Favoritos</a><a class="px-4 py-1.5 rounded-full font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all whitespace-nowrap" data-path="paises" href="#">🌎 Países</a><a class="px-4 py-1.5 rounded-full font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all whitespace-nowrap" data-path="deportes" href="#">⚽ Deportes</a><a class="px-4 py-1.5 rounded-full font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all whitespace-nowrap" data-path="noticias" href="#">📰 Noticias</a><a class="px-4 py-1.5 rounded-full font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all whitespace-nowrap" data-path="peliculas" href="#">🎬 Películas</a><a class="px-4 py-1.5 rounded-full font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all whitespace-nowrap" data-path="series" href="#">📺 Series</a><a class="px-4 py-1.5 rounded-full font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all whitespace-nowrap" data-path="infantil" href="#">👶 Infantil</a><a class="px-4 py-1.5 rounded-full font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all whitespace-nowrap" data-path="musica" href="#">🎵 Música</a><a class="ml-auto px-4 py-1.5 rounded-full font-label-md text-label-md bg-secondary-container text-on-secondary font-bold hover:bg-secondary hover:text-on-secondary shadow-[0_0_24px_rgba(245,158,11,0.35)] transition-all whitespace-nowrap flex items-center gap-1.5" data-path="importante" href="#">⚡ Importante</a></nav></div><div class="w-full bg-surface-container-lowest/90 px-margin-tv-safe py-1.5 flex items-center gap-4 overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.6)]"><div class="flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-secondary-container text-on-secondary shrink-0"><span class="material-symbols-outlined text-[15px]">campaign</span><span class="font-label-md text-label-md uppercase tracking-wider">En Vivo RSS</span></div><div class="overflow-hidden relative w-full flex items-center"><div class="animate-marquee font-ticker-text text-ticker-text text-on-surface-variant"><span class="mx-4">🔴 La Liga: Real Madrid vs FC Barcelona transmitiendo en vivo en señal 4K UHD</span><span class="mx-4 text-outline">•</span><span class="mx-4">🏆 Champions League: Próxima jornada inicia martes 21:00 CET</span><span class="mx-4 text-outline">•</span><span class="mx-4">⚡ Actualización de Servidores Chari-IPTV completada con éxito en nodos LATAM y Europa</span><span class="mx-4 text-outline">•</span><span class="mx-4">🎬 Estreno de cine exclusivo disponible esta noche en el catálogo bajo demanda</span><span class="mx-4 text-outline">•</span><span class="mx-4">🔴 La Liga: Real Madrid vs FC Barcelona transmitiendo en vivo en señal 4K UHD</span><span class="mx-4 text-outline">•</span><span class="mx-4">🏆 Champions League: Próxima jornada inicia martes 21:00 CET</span><span class="mx-4 text-outline">•</span><span class="mx-4">⚡ Actualización de Servidores Chari-IPTV completada con éxito en nodos LATAM y Europa</span><span class="mx-4 text-outline">•</span><span class="mx-4">🎬 Estreno de cine exclusivo disponible esta noche en el catálogo bajo demanda</span></div></div></div></header><main class="w-full pt-28 bg-surface"><div class="flex flex-col w-full">
+<!-- Dynamic Spatial Glow behind active focus coordinate -->
+<div class="fixed top-36 left-24 w-96 h-96 rounded-full bg-primary-container/15 blur-[120px] pointer-events-none -z-10"></div>
+<div class="fixed bottom-12 right-24 w-[32rem] h-[32rem] rounded-full bg-secondary-container/10 blur-[140px] pointer-events-none -z-10"></div>
+<!-- Lean-back Quick Action Subheader & Remote Spatial Controls -->
+<div class="w-full px-margin-tv-safe pt-space-md pb-space-sm flex items-center justify-between">
+<div class="flex items-center gap-space-md">
+<!-- D-Pad Upward Anchor Assist Chip -->
+<button class="group flex items-center gap-2 px-4 py-2 rounded-full bg-surface-container-high/90 hover:bg-primary-container text-on-surface hover:text-on-primary-container shadow-md transition-all duration-150 transform hover:-translate-y-0.5 focus:outline-none" id="btn-tabs-up">
+<span class="material-symbols-outlined text-[18px] text-secondary group-hover:text-on-primary-container transition-colors">keyboard_arrow_up</span>
+<span class="font-label-md text-label-md tracking-wider uppercase">Subir a Pestañas</span>
+<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-surface-container-lowest text-on-surface-variant group-hover:bg-on-primary/30 group-hover:text-on-primary-container">[Atrás]</span>
+</button>
+<!-- Active Section Context Indicator -->
+<div class="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface-container-lowest/80 backdrop-blur-md">
+<span class="material-symbols-outlined text-secondary text-[20px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="font-title-md text-title-md text-on-surface font-bold tracking-tight">Canales Favoritos</span>
+<span class="ml-1.5 px-2 py-0.5 rounded bg-primary-container/40 text-primary font-label-md text-label-md">8 Guardados</span>
+</div>
+</div>
+<!-- Live Playback Engine Telemetry -->
+<div class="flex items-center gap-space-lg">
+<div class="flex items-center gap-2 text-on-surface-variant font-label-md text-label-md">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+<span>Buffer: <strong class="text-on-surface font-semibold">0.4s Ultra-Low Latency</strong></span>
+</div>
+<div class="flex items-center gap-1.5 px-3 py-1 rounded bg-surface-container-low text-secondary font-label-md text-label-md">
+<span class="material-symbols-outlined text-[17px]">auto_videocam</span>
+<span>HLS v7 • Direct Direct</span>
+</div>
+</div>
+</div>
+<!-- TvLazyVerticalGrid 4-Column Channel Mosaic (16:11 Card Geometry) -->
+<section class="w-full px-margin-tv-safe py-space-sm">
+<div class="grid grid-cols-4 gap-gutter-tv" id="tv-grid">
+<!-- Channel 1: América TV HD (INITIAL D-PAD FOCUSED ELEVATION) -->
+<div class="channel-card group relative aspect-[16/11] rounded-xl cursor-pointer bg-primary-container text-on-primary-container shadow-[0_0_36px_rgba(37,99,235,0.7)] scale-[1.06] z-20 outline-none transition-all duration-150 ease-out select-none flex flex-col justify-between overflow-hidden p-space-md ring-4 ring-on-primary-container" data-channel-id="1" tabindex="0">
+<!-- Ambient Broadcast Preview Sheen -->
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/40 to-transparent opacity-90 pointer-events-none"></div>
+<!-- Top Badges Row -->
+<div class="relative z-10 flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-error-container text-error text-[11px] font-bold tracking-wider uppercase shadow-md">
+<span class="w-2 h-2 rounded-full bg-error animate-ping"></span>
+              EN VIVO
+            </span>
+<span class="px-2 py-0.5 rounded bg-surface-container-lowest/80 text-primary-fixed text-[11px] font-bold tracking-wider">24/7 HD</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-[13px] px-2 py-0.5 rounded-full bg-surface-container-lowest/70 text-on-surface font-semibold">🇵🇪 PER</span>
+<button class="w-8 h-8 rounded-full bg-surface-container-lowest/80 flex items-center justify-center text-secondary shadow hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[19px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</button>
+</div>
+</div>
+<!-- Central Channel Brand Emblem -->
+<div class="relative z-10 flex flex-col items-center justify-center my-auto">
+<div class="w-16 h-16 rounded-2xl bg-surface-container-lowest/90 flex items-center justify-center shadow-xl group-hover:scale-105 transition-transform">
+<div class="relative flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-[38px]">live_tv</span>
+<span class="absolute -bottom-1 -right-2 px-1 rounded bg-secondary text-on-secondary font-black text-[9px] tracking-tighter">4K</span>
+</div>
+</div>
+<span class="font-headline-sm text-headline-sm font-extrabold text-on-surface tracking-tight mt-2 text-center drop-shadow-md">América TV HD</span>
+</div>
+<!-- Dynamic EPG Metadata Scrim -->
+<div class="relative z-10 flex flex-col gap-0.5 bg-surface-container-lowest/95 backdrop-blur-md p-2.5 rounded-lg">
+<div class="flex items-center justify-between">
+<span class="font-ticker-text text-ticker-text text-primary font-bold truncate">Al Fondo Hay Sitio • Temporada 11</span>
+<span class="font-label-md text-label-md text-secondary shrink-0 font-bold ml-2">20:30 - 21:45</span>
+</div>
+<!-- EPG Mini Timeline Bar -->
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden mt-1">
+<div class="bg-secondary h-full rounded-full" style="width: 68%;"></div>
+</div>
+</div>
+</div>
+<!-- Channel 2: ATV HD -->
+<div class="channel-card group relative aspect-[16/11] rounded-xl cursor-pointer bg-surface-container-low text-on-surface shadow-md hover:bg-primary-container hover:text-on-primary-container hover:scale-[1.06] hover:z-20 hover:shadow-[0_0_36px_rgba(37,99,235,0.7)] hover:ring-4 hover:ring-on-primary-container focus:bg-primary-container focus:text-on-primary-container focus:scale-[1.06] focus:z-20 focus:shadow-[0_0_36px_rgba(37,99,235,0.7)] focus:ring-4 focus:ring-on-primary-container outline-none transition-all duration-150 ease-out select-none flex flex-col justify-between overflow-hidden p-space-md" data-channel-id="2" tabindex="0">
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/50 to-transparent opacity-80 pointer-events-none"></div>
+<div class="relative z-10 flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-error-container text-error text-[11px] font-bold tracking-wider uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-error animate-ping"></span>
+              EN VIVO
+            </span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant group-hover:text-primary-fixed text-[11px] font-bold">1080p</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-[13px] px-2 py-0.5 rounded-full bg-surface-container-lowest/80 text-on-surface-variant font-semibold">🇵🇪 PER</span>
+<button class="w-8 h-8 rounded-full bg-surface-container-lowest/80 flex items-center justify-center text-secondary shadow">
+<span class="material-symbols-outlined text-[19px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</button>
+</div>
+</div>
+<div class="relative z-10 flex flex-col items-center justify-center my-auto">
+<div class="w-16 h-16 rounded-2xl bg-surface-container-lowest/80 group-hover:bg-surface-container-lowest flex items-center justify-center shadow-lg transition-transform">
+<span class="material-symbols-outlined text-secondary-fixed-dim text-[36px]">sports_soccer</span>
+</div>
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface group-hover:text-on-primary-container tracking-tight mt-2 text-center">ATV HD</span>
+</div>
+<div class="relative z-10 flex flex-col gap-0.5 bg-surface-container-lowest/90 backdrop-blur-md p-2.5 rounded-lg">
+<div class="flex items-center justify-between">
+<span class="font-ticker-text text-ticker-text text-on-surface group-hover:text-primary-fixed font-semibold truncate">Magaly TV: La Firme</span>
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-secondary-fixed shrink-0 font-medium ml-2">21:00</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden mt-1">
+<div class="bg-primary h-full rounded-full" style="width: 42%;"></div>
+</div>
+</div>
+</div>
+<!-- Channel 3: Telefe HD -->
+<div class="channel-card group relative aspect-[16/11] rounded-xl cursor-pointer bg-surface-container-low text-on-surface shadow-md hover:bg-primary-container hover:text-on-primary-container hover:scale-[1.06] hover:z-20 hover:shadow-[0_0_36px_rgba(37,99,235,0.7)] hover:ring-4 hover:ring-on-primary-container focus:bg-primary-container focus:text-on-primary-container focus:scale-[1.06] focus:z-20 focus:shadow-[0_0_36px_rgba(37,99,235,0.7)] focus:ring-4 focus:ring-on-primary-container outline-none transition-all duration-150 ease-out select-none flex flex-col justify-between overflow-hidden p-space-md" data-channel-id="3" tabindex="0">
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/50 to-transparent opacity-80 pointer-events-none"></div>
+<div class="relative z-10 flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant group-hover:text-primary-fixed text-[11px] font-bold">24/7 Señal</span>
+<span class="px-2 py-0.5 rounded bg-primary-container/30 text-primary text-[11px] font-bold">FHD</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-[13px] px-2 py-0.5 rounded-full bg-surface-container-lowest/80 text-on-surface-variant font-semibold">🇦🇷 ARG</span>
+<button class="w-8 h-8 rounded-full bg-surface-container-lowest/80 flex items-center justify-center text-secondary shadow">
+<span class="material-symbols-outlined text-[19px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</button>
+</div>
+</div>
+<div class="relative z-10 flex flex-col items-center justify-center my-auto">
+<!-- Telefe Iconic 3 spheres representation -->
+<div class="flex items-center justify-center gap-1.5 p-3 rounded-2xl bg-surface-container-lowest/80 group-hover:bg-surface-container-lowest shadow-lg">
+<div class="w-4 h-4 rounded-full bg-sky-400 shadow-sm"></div>
+<div class="w-4 h-4 rounded-full bg-emerald-400 shadow-sm"></div>
+<div class="w-4 h-4 rounded-full bg-red-500 shadow-sm"></div>
+</div>
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface group-hover:text-on-primary-container tracking-tight mt-2 text-center">Telefe HD</span>
+</div>
+<div class="relative z-10 flex flex-col gap-0.5 bg-surface-container-lowest/90 backdrop-blur-md p-2.5 rounded-lg">
+<div class="flex items-center justify-between">
+<span class="font-ticker-text text-ticker-text text-on-surface group-hover:text-primary-fixed font-semibold truncate">Gran Hermano: El Debate</span>
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-secondary-fixed shrink-0 font-medium ml-2">22:00</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden mt-1">
+<div class="bg-primary h-full rounded-full" style="width: 85%;"></div>
+</div>
+</div>
+</div>
+<!-- Channel 4: Antena 3 HD -->
+<div class="channel-card group relative aspect-[16/11] rounded-xl cursor-pointer bg-surface-container-low text-on-surface shadow-md hover:bg-primary-container hover:text-on-primary-container hover:scale-[1.06] hover:z-20 hover:shadow-[0_0_36px_rgba(37,99,235,0.7)] hover:ring-4 hover:ring-on-primary-container focus:bg-primary-container focus:text-on-primary-container focus:scale-[1.06] focus:z-20 focus:shadow-[0_0_36px_rgba(37,99,235,0.7)] focus:ring-4 focus:ring-on-primary-container outline-none transition-all duration-150 ease-out select-none flex flex-col justify-between overflow-hidden p-space-md" data-channel-id="4" tabindex="0">
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/50 to-transparent opacity-80 pointer-events-none"></div>
+<div class="relative z-10 flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-error-container text-error text-[11px] font-bold tracking-wider uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-error animate-ping"></span>
+              EN VIVO
+            </span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant group-hover:text-primary-fixed text-[11px] font-bold">Dolby 5.1</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-[13px] px-2 py-0.5 rounded-full bg-surface-container-lowest/80 text-on-surface-variant font-semibold">🇪🇸 ESP</span>
+<button class="w-8 h-8 rounded-full bg-surface-container-lowest/80 flex items-center justify-center text-secondary shadow">
+<span class="material-symbols-outlined text-[19px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</button>
+</div>
+</div>
+<div class="relative z-10 flex flex-col items-center justify-center my-auto">
+<div class="w-16 h-16 rounded-2xl bg-surface-container-lowest/80 group-hover:bg-surface-container-lowest flex items-center justify-center shadow-lg">
+<span class="material-symbols-outlined text-secondary text-[36px]">change_history</span>
+</div>
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface group-hover:text-on-primary-container tracking-tight mt-2 text-center">Antena 3 HD</span>
+</div>
+<div class="relative z-10 flex flex-col gap-0.5 bg-surface-container-lowest/90 backdrop-blur-md p-2.5 rounded-lg">
+<div class="flex items-center justify-between">
+<span class="font-ticker-text text-ticker-text text-on-surface group-hover:text-primary-fixed font-semibold truncate">El Hormiguero 3.0</span>
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-secondary-fixed shrink-0 font-medium ml-2">21:55</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden mt-1">
+<div class="bg-primary h-full rounded-full" style="width: 15%;"></div>
+</div>
+</div>
+</div>
+<!-- Channel 5: Caracol TV -->
+<div class="channel-card group relative aspect-[16/11] rounded-xl cursor-pointer bg-surface-container-low text-on-surface shadow-md hover:bg-primary-container hover:text-on-primary-container hover:scale-[1.06] hover:z-20 hover:shadow-[0_0_36px_rgba(37,99,235,0.7)] hover:ring-4 hover:ring-on-primary-container focus:bg-primary-container focus:text-on-primary-container focus:scale-[1.06] focus:z-20 focus:shadow-[0_0_36px_rgba(37,99,235,0.7)] focus:ring-4 focus:ring-on-primary-container outline-none transition-all duration-150 ease-out select-none flex flex-col justify-between overflow-hidden p-space-md" data-channel-id="5" tabindex="0">
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/50 to-transparent opacity-80 pointer-events-none"></div>
+<div class="relative z-10 flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant group-hover:text-primary-fixed text-[11px] font-bold">24/7 Señal</span>
+<span class="px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-400 text-[11px] font-bold">Estable</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-[13px] px-2 py-0.5 rounded-full bg-surface-container-lowest/80 text-on-surface-variant font-semibold">🇨🇴 COL</span>
+<button class="w-8 h-8 rounded-full bg-surface-container-lowest/80 flex items-center justify-center text-secondary shadow">
+<span class="material-symbols-outlined text-[19px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</button>
+</div>
+</div>
+<div class="relative z-10 flex flex-col items-center justify-center my-auto">
+<div class="w-16 h-16 rounded-2xl bg-surface-container-lowest/80 group-hover:bg-surface-container-lowest flex items-center justify-center shadow-lg">
+<span class="material-symbols-outlined text-primary text-[36px]">cyclone</span>
+</div>
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface group-hover:text-on-primary-container tracking-tight mt-2 text-center">Caracol TV</span>
+</div>
+<div class="relative z-10 flex flex-col gap-0.5 bg-surface-container-lowest/90 backdrop-blur-md p-2.5 rounded-lg">
+<div class="flex items-center justify-between">
+<span class="font-ticker-text text-ticker-text text-on-surface group-hover:text-primary-fixed font-semibold truncate">Noticias Caracol Central</span>
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-secondary-fixed shrink-0 font-medium ml-2">19:00</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden mt-1">
+<div class="bg-primary h-full rounded-full" style="width: 55%;"></div>
+</div>
+</div>
+</div>
+<!-- Channel 6: Canal 13 HD -->
+<div class="channel-card group relative aspect-[16/11] rounded-xl cursor-pointer bg-surface-container-low text-on-surface shadow-md hover:bg-primary-container hover:text-on-primary-container hover:scale-[1.06] hover:z-20 hover:shadow-[0_0_36px_rgba(37,99,235,0.7)] hover:ring-4 hover:ring-on-primary-container focus:bg-primary-container focus:text-on-primary-container focus:scale-[1.06] focus:z-20 focus:shadow-[0_0_36px_rgba(37,99,235,0.7)] focus:ring-4 focus:ring-on-primary-container outline-none transition-all duration-150 ease-out select-none flex flex-col justify-between overflow-hidden p-space-md" data-channel-id="6" tabindex="0">
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/50 to-transparent opacity-80 pointer-events-none"></div>
+<div class="relative z-10 flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-error-container text-error text-[11px] font-bold tracking-wider uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-error animate-ping"></span>
+              EN VIVO
+            </span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant group-hover:text-primary-fixed text-[11px] font-bold">1080p</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-[13px] px-2 py-0.5 rounded-full bg-surface-container-lowest/80 text-on-surface-variant font-semibold">🇨🇱 CHL</span>
+<button class="w-8 h-8 rounded-full bg-surface-container-lowest/80 flex items-center justify-center text-secondary shadow">
+<span class="material-symbols-outlined text-[19px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</button>
+</div>
+</div>
+<div class="relative z-10 flex flex-col items-center justify-center my-auto">
+<div class="w-16 h-16 rounded-2xl bg-surface-container-lowest/80 group-hover:bg-surface-container-lowest flex items-center justify-center shadow-lg">
+<span class="font-display-tv text-title-md font-black text-secondary">13</span>
+</div>
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface group-hover:text-on-primary-container tracking-tight mt-2 text-center">Canal 13 HD</span>
+</div>
+<div class="relative z-10 flex flex-col gap-0.5 bg-surface-container-lowest/90 backdrop-blur-md p-2.5 rounded-lg">
+<div class="flex items-center justify-between">
+<span class="font-ticker-text text-ticker-text text-on-surface group-hover:text-primary-fixed font-semibold truncate">Tierra Brava: Cosechas</span>
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-secondary-fixed shrink-0 font-medium ml-2">22:15</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden mt-1">
+<div class="bg-primary h-full rounded-full" style="width: 30%;"></div>
+</div>
+</div>
+</div>
+<!-- Channel 7: Las Estrellas -->
+<div class="channel-card group relative aspect-[16/11] rounded-xl cursor-pointer bg-surface-container-low text-on-surface shadow-md hover:bg-primary-container hover:text-on-primary-container hover:scale-[1.06] hover:z-20 hover:shadow-[0_0_36px_rgba(37,99,235,0.7)] hover:ring-4 hover:ring-on-primary-container focus:bg-primary-container focus:text-on-primary-container focus:scale-[1.06] focus:z-20 focus:shadow-[0_0_36px_rgba(37,99,235,0.7)] focus:ring-4 focus:ring-on-primary-container outline-none transition-all duration-150 ease-out select-none flex flex-col justify-between overflow-hidden p-space-md" data-channel-id="7" tabindex="0">
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/50 to-transparent opacity-80 pointer-events-none"></div>
+<div class="relative z-10 flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-error-container text-error text-[11px] font-bold tracking-wider uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-error animate-ping"></span>
+              EN VIVO
+            </span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant group-hover:text-primary-fixed text-[11px] font-bold">24/7</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-[13px] px-2 py-0.5 rounded-full bg-surface-container-lowest/80 text-on-surface-variant font-semibold">🇲🇽 MEX</span>
+<button class="w-8 h-8 rounded-full bg-surface-container-lowest/80 flex items-center justify-center text-secondary shadow">
+<span class="material-symbols-outlined text-[19px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</button>
+</div>
+</div>
+<div class="relative z-10 flex flex-col items-center justify-center my-auto">
+<div class="w-16 h-16 rounded-2xl bg-surface-container-lowest/80 group-hover:bg-surface-container-lowest flex items-center justify-center shadow-lg">
+<span class="material-symbols-outlined text-secondary text-[36px]" style="font-variation-settings: 'FILL' 1;">flare</span>
+</div>
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface group-hover:text-on-primary-container tracking-tight mt-2 text-center">Las Estrellas</span>
+</div>
+<div class="relative z-10 flex flex-col gap-0.5 bg-surface-container-lowest/90 backdrop-blur-md p-2.5 rounded-lg">
+<div class="flex items-center justify-between">
+<span class="font-ticker-text text-ticker-text text-on-surface group-hover:text-primary-fixed font-semibold truncate">La Rosa de Guadalupe</span>
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-secondary-fixed shrink-0 font-medium ml-2">19:30</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden mt-1">
+<div class="bg-primary h-full rounded-full" style="width: 75%;"></div>
+</div>
+</div>
+</div>
+<!-- Channel 8: Latina Televisión -->
+<div class="channel-card group relative aspect-[16/11] rounded-xl cursor-pointer bg-surface-container-low text-on-surface shadow-md hover:bg-primary-container hover:text-on-primary-container hover:scale-[1.06] hover:z-20 hover:shadow-[0_0_36px_rgba(37,99,235,0.7)] hover:ring-4 hover:ring-on-primary-container focus:bg-primary-container focus:text-on-primary-container focus:scale-[1.06] focus:z-20 focus:shadow-[0_0_36px_rgba(37,99,235,0.7)] focus:ring-4 focus:ring-on-primary-container outline-none transition-all duration-150 ease-out select-none flex flex-col justify-between overflow-hidden p-space-md" data-channel-id="8" tabindex="0">
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/50 to-transparent opacity-80 pointer-events-none"></div>
+<div class="relative z-10 flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant group-hover:text-primary-fixed text-[11px] font-bold">24/7 HD</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant text-[11px] font-bold">Señal 2</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-[13px] px-2 py-0.5 rounded-full bg-surface-container-lowest/80 text-on-surface-variant font-semibold">🇵🇪 PER</span>
+<button class="w-8 h-8 rounded-full bg-surface-container-lowest/80 flex items-center justify-center text-secondary shadow">
+<span class="material-symbols-outlined text-[19px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</button>
+</div>
+</div>
+<div class="relative z-10 flex flex-col items-center justify-center my-auto">
+<div class="w-16 h-16 rounded-2xl bg-surface-container-lowest/80 group-hover:bg-surface-container-lowest flex items-center justify-center shadow-lg">
+<span class="font-display-tv text-title-md font-black text-primary">L</span>
+</div>
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface group-hover:text-on-primary-container tracking-tight mt-2 text-center">Latina TV</span>
+</div>
+<div class="relative z-10 flex flex-col gap-0.5 bg-surface-container-lowest/90 backdrop-blur-md p-2.5 rounded-lg">
+<div class="flex items-center justify-between">
+<span class="font-ticker-text text-ticker-text text-on-surface group-hover:text-primary-fixed font-semibold truncate">El Gran Chef Famosos</span>
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-secondary-fixed shrink-0 font-medium ml-2">20:00</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden mt-1">
+<div class="bg-primary h-full rounded-full" style="width: 50%;"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Remote Navigation Guide & Interactive Feedback HUD (Sticky TV Lower Third) -->
+<div class="w-full px-margin-tv-safe pt-space-lg pb-space-sm flex items-center justify-between mt-auto">
+<!-- Contextual Remote Interaction Keybinds -->
+<div class="flex items-center gap-4 bg-surface-container-lowest/95 backdrop-blur-xl px-5 py-2.5 rounded-full shadow-2xl">
+<div class="flex items-center gap-2">
+<span class="px-2.5 py-0.5 rounded bg-primary text-on-primary font-label-md text-label-md font-bold">OK</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">Reproducir Canal</span>
+</div>
+<span class="text-outline-variant">•</span>
+<div class="flex items-center gap-2">
+<span class="px-2.5 py-0.5 rounded bg-surface-container-highest text-secondary font-label-md text-label-md font-bold">MANTENER OK</span>
+<span class="font-body-md text-body-md text-on-surface-variant">Alternar Favorito</span>
+</div>
+<span class="text-outline-variant">•</span>
+<div class="flex items-center gap-2">
+<span class="px-2.5 py-0.5 rounded bg-surface-container-highest text-on-surface font-label-md text-label-md font-bold">ATRÁS</span>
+<span class="font-body-md text-body-md text-on-surface-variant">Subir a Pestañas</span>
+</div>
+</div>
+<!-- Active Stream Quality Badge -->
+<div class="flex items-center gap-3 bg-surface-container-low/80 backdrop-blur-md px-4 py-2 rounded-xl">
+<span class="material-symbols-outlined text-primary text-[20px]">tune</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Codec: HEVC / H.265</span>
+<span class="text-[11px] text-on-surface-variant font-mono">Bitrate: 8,420 kbps Constante</span>
+</div>
+</div>
+</div>
+<!-- Android TV D-Pad Simulation Controller (Interactive Engine) -->
+<script>
+    (function () {
+      const cards = Array.from(document.querySelectorAll('.channel-card'));
+      let currentIndex = 0;
+
+      // Update visually focused TV state
+      function setFocus(index) {
+        cards.forEach((card, idx) => {
+          if (idx === index) {
+            card.focus();
+            card.classList.remove('bg-surface-container-low', 'text-on-surface');
+            card.classList.add('bg-primary-container', 'text-on-primary-container', 'scale-[1.06]', 'z-20', 'shadow-[0_0_36px_rgba(37,99,235,0.7)]', 'ring-4', 'ring-on-primary-container');
+          } else {
+            card.blur();
+            card.classList.add('bg-surface-container-low', 'text-on-surface');
+            card.classList.remove('bg-primary-container', 'text-on-primary-container', 'scale-[1.06]', 'z-20', 'shadow-[0_0_36px_rgba(37,99,235,0.7)]', 'ring-4', 'ring-on-primary-container');
+          }
+        });
+        currentIndex = index;
+      }
+
+      // Keyboard & D-Pad Keydown Event Handlers for TV Remote
+      window.addEventListener('keydown', function (e) {
+        const cols = 4;
+        const total = cards.length;
+
+        switch (e.key) {
+          case 'ArrowRight':
+            e.preventDefault();
+            if (currentIndex + 1 < total) setFocus(currentIndex + 1);
+            break;
+          case 'ArrowLeft':
+            e.preventDefault();
+            if (currentIndex - 1 >= 0) setFocus(currentIndex - 1);
+            break;
+          case 'ArrowDown':
+            e.preventDefault();
+            if (currentIndex + cols < total) setFocus(currentIndex + cols);
+            break;
+          case 'ArrowUp':
+            e.preventDefault();
+            if (currentIndex - cols >= 0) {
+              setFocus(currentIndex - cols);
+            } else {
+              // Elevate to Subir a pestañas
+              const upBtn = document.getElementById('btn-tabs-up');
+              if (upBtn) upBtn.focus();
+            }
+            break;
+          case 'Enter':
+            e.preventDefault();
+            // Trigger feedback pulse
+            const activeCard = cards[currentIndex];
+            if (activeCard) {
+              activeCard.classList.add('scale-[0.98]');
+              setTimeout(() => activeCard.classList.remove('scale-[0.98]'), 120);
+            }
+            break;
+          case 'Backspace':
+          case 'Escape':
+            e.preventDefault();
+            const navFavoritos = document.querySelector('nav a[data-path="favoritos"]');
+            if (navFavoritos) navFavoritos.focus();
+            break;
+        }
+      });
+
+      // Mouse/Pointer hover bindings for hybrid Smart TV navigation
+      cards.forEach((card, idx) => {
+        card.addEventListener('mouseenter', () => setFocus(idx));
+      });
+    })();
+  </script>
+</div></main><footer class="w-full bg-surface-container-lowest/80 py-4 px-margin-tv-safe mt-space-lg"><div class="flex items-center justify-between text-on-surface-variant font-label-md text-label-md"><div class="flex items-center gap-space-lg"><span>[OK] Seleccionar Canal</span><span>[▲/▼] Navegar Filas</span><span>[◀/▶] Cambiar Categoría</span><span>[INFO] Guía EPG</span></div><div class="text-right"><span>Chari-IPTV Android TV Core v4.8 • Audio Dolby Atmos</span></div></div></footer></body></html>
