@@ -8,6 +8,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -50,6 +52,7 @@ import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
 import com.example.chariiptv.R
 import com.example.chariiptv.domain.Channel
+import com.example.chariiptv.presentation.components.QuickChannelDrawer
 import com.example.chariiptv.theme.*
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -72,6 +75,10 @@ interface PlayerEntryPoint {
 fun ExoPlayerView(
     channel: Channel,
     isFavorite: Boolean,
+    categoryChannels: List<Channel> = emptyList(),
+    categoryTitle: String = "",
+    favorites: Set<String> = emptySet(),
+    onChannelChange: (Channel) -> Unit = {},
     onToggleFavorite: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -96,6 +103,9 @@ fun ExoPlayerView(
     var useProxyFallback by remember(channel.url) { mutableStateOf(false) }
     val retryFocusRequester = remember { FocusRequester() }
 
+    // Cajón lateral de canales rápidos (Zapping sin salir del reproductor)
+    var isSideDrawerVisible by remember { mutableStateOf(false) }
+
     // HUD interactivo con auto-ocultado tras 5 segundos
     var isHudVisible by remember { mutableStateOf(true) }
     var hudInteractionTrigger by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -107,9 +117,9 @@ fun ExoPlayerView(
     val appVersion = remember(context) {
         try {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            "v${packageInfo.versionName ?: "1.0"}"
+            "v${packageInfo.versionName ?: "1.1"}"
         } catch (_: Exception) {
-            "v1.0"
+            "v1.1"
         }
     }
 
@@ -126,7 +136,12 @@ fun ExoPlayerView(
         }
     }
 
-    BackHandler {
+    // Si el drawer lateral está abierto, la tecla Atrás cierra el drawer en vez de salir de la app
+    BackHandler(enabled = isSideDrawerVisible) {
+        isSideDrawerVisible = false
+    }
+
+    BackHandler(enabled = !isSideDrawerVisible) {
         onClose()
     }
 
@@ -279,6 +294,14 @@ fun ExoPlayerView(
                     if (event.action == KeyEvent.ACTION_UP) {
                         hudInteractionTrigger = System.currentTimeMillis()
                         when (keyCode) {
+                            KeyEvent.KEYCODE_DPAD_LEFT -> {
+                                if (categoryChannels.isNotEmpty()) {
+                                    isSideDrawerVisible = !isSideDrawerVisible
+                                    true
+                                } else {
+                                    false
+                                }
+                            }
                             KeyEvent.KEYCODE_DPAD_UP -> {
                                 onToggleFavorite()
                                 true
@@ -298,7 +321,7 @@ fun ExoPlayerView(
 
         // HUD SUPERIOR: Datos reales de la emisión (Logo, Nombre, Directo, Proxy, Reloj)
         AnimatedVisibility(
-            visible = isHudVisible && !isError,
+            visible = isHudVisible && !isError && !isSideDrawerVisible,
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically(),
             modifier = Modifier
@@ -395,7 +418,7 @@ fun ExoPlayerView(
                     }
                 }
 
-                // Lado Derecho: Reloj y Versión
+                // Lado Derecho: Reloj
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -419,7 +442,7 @@ fun ExoPlayerView(
 
         // HUD INFERIOR: Atajos y Versión de la App en la parte inferior derecha
         AnimatedVisibility(
-            visible = isHudVisible && !isError,
+            visible = isHudVisible && !isError && !isSideDrawerVisible,
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically(),
             modifier = Modifier
@@ -437,8 +460,26 @@ fun ExoPlayerView(
                 // Atajos en el reproductor
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    // Atajo Lista de Canales [◀]
+                    if (categoryChannels.isNotEmpty()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(TvPrimary)
+                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                            ) {
+                                Text(text = "◀", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Text(text = "Lista de Canales", color = Color.White, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(5.dp)
@@ -451,7 +492,7 @@ fun ExoPlayerView(
                         ) {
                             Text(text = "ATRÁS", color = Color.White, fontSize = 9.5.sp, fontWeight = FontWeight.Bold)
                         }
-                        Text(text = "Volver a Canales", color = TvOnSurfaceVariant, fontSize = 11.5.sp)
+                        Text(text = "Volver a Menú", color = TvOnSurfaceVariant, fontSize = 11.5.sp)
                     }
 
                     Row(
@@ -467,7 +508,7 @@ fun ExoPlayerView(
                             Text(text = "▲", color = TvSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                         Text(
-                            text = if (isFavorite) "Quitar de Favoritos" else "Añadir a Favoritos",
+                            text = if (isFavorite) "Quitar Favorito" else "Añadir Favorito",
                             color = TvOnSurfaceVariant,
                             fontSize = 11.5.sp
                         )
@@ -490,6 +531,27 @@ fun ExoPlayerView(
                     }
                 }
             }
+        }
+
+        // CAJÓN LATERAL FLOTANTE DE CANALES (Zapping instantáneo en la misma sección)
+        AnimatedVisibility(
+            visible = isSideDrawerVisible && !isError,
+            enter = slideInHorizontally { -it } + fadeIn(),
+            exit = slideOutHorizontally { -it } + fadeOut(),
+            modifier = Modifier.align(Alignment.CenterStart)
+        ) {
+            QuickChannelDrawer(
+                channels = categoryChannels,
+                currentChannelUrl = channel.url,
+                categoryTitle = categoryTitle,
+                favorites = favorites,
+                onChannelSelected = { newChannel ->
+                    onChannelChange(newChannel)
+                },
+                onClose = {
+                    isSideDrawerVisible = false
+                }
+            )
         }
 
         // Overlay: Estado de carga / Buffering

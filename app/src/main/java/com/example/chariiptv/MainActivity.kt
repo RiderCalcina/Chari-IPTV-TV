@@ -107,13 +107,22 @@ class MainActivity : ComponentActivity() {
 
                     // Reproductor a Pantalla Completa
                     if (uiState.currentChannel != null) {
-                        BackHandler {
-                            viewModel.playChannel(null)
+                        val currentCategoryTitle = if (uiState.selectedFilterId == "countries") {
+                            Constants.SUPPORTED_COUNTRIES[uiState.selectedCountryCode] ?: "Países"
+                        } else {
+                            Constants.getFilterDisplayName(uiState.selectedFilterId)
                         }
+
                         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
                             ExoPlayerView(
                                 channel = uiState.currentChannel!!,
                                 isFavorite = uiState.favorites.contains(uiState.currentChannel!!.url),
+                                categoryChannels = uiState.channels,
+                                categoryTitle = currentCategoryTitle,
+                                favorites = uiState.favorites,
+                                onChannelChange = { newChannel ->
+                                    viewModel.playChannel(newChannel)
+                                },
                                 onToggleFavorite = {
                                     viewModel.toggleFavorite(uiState.currentChannel!!)
                                     notificationMessage = if (uiState.favorites.contains(uiState.currentChannel!!.url)) {

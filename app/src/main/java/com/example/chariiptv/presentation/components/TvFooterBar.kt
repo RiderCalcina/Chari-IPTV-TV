@@ -25,9 +25,9 @@ fun TvFooterBar(
     val appVersion = remember(context) {
         try {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            "v${packageInfo.versionName ?: "1.0"}"
+            "v${packageInfo.versionName ?: "1.1"}"
         } catch (_: Exception) {
-            "v1.0"
+            "v1.1"
         }
     }
 
