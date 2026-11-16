@@ -1,6 +1,7 @@
 package com.example.chariiptv.player
 
 import android.content.Context
+import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -8,9 +9,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
@@ -22,6 +25,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -39,19 +43,23 @@ import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
+import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
+import com.example.chariiptv.R
 import com.example.chariiptv.domain.Channel
-import com.example.chariiptv.theme.TvPrimary
-import com.example.chariiptv.theme.TvPrimaryFocused
+import com.example.chariiptv.theme.*
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.delay
 import okhttp3.OkHttpClient
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @EntryPoint
 @InstallIn(SingletonComponent::class)
@@ -88,6 +96,36 @@ fun ExoPlayerView(
     var useProxyFallback by remember(channel.url) { mutableStateOf(false) }
     val retryFocusRequester = remember { FocusRequester() }
 
+    // HUD interactivo con auto-ocultado tras 5 segundos
+    var isHudVisible by remember { mutableStateOf(true) }
+    var hudInteractionTrigger by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    var currentTime by remember {
+        mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()))
+    }
+
+    val appVersion = remember(context) {
+        try {
+            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            "v${packageInfo.versionName ?: "1.0"}"
+        } catch (_: Exception) {
+            "v1.0"
+        }
+    }
+
+    LaunchedEffect(hudInteractionTrigger) {
+        isHudVisible = true
+        delay(5000)
+        isHudVisible = false
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+            delay(15_000)
+        }
+    }
+
     BackHandler {
         onClose()
     }
@@ -100,7 +138,7 @@ fun ExoPlayerView(
         }
     }
 
-    // 1. Instancia optimizada de ExoPlayer con FFmpeg y política de reintentos inteligente
+    // 1. Instancia optimizada de ExoPlayer con FFmpeg y política de reintentos
     val exoPlayer = remember(activeStreamUrl, retryCount) {
         PlayerBuilder.build(context, okHttpClient).apply {
             setMediaItem(MediaItem.fromUri(activeStreamUrl))
@@ -128,14 +166,12 @@ fun ExoPlayerView(
             override fun onPlayerError(error: PlaybackException) {
                 super.onPlayerError(error)
                 if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
-                    // Recuperar el directo automáticamente si hubo un pequeño corte de paquetes
                     exoPlayer.seekToDefaultPosition()
                     exoPlayer.prepare()
                     exoPlayer.play()
                     return
                 }
 
-                // Autorrecuperación rápida en vivo si hay microcorte de red
                 if (autoRetryCount < 2) {
                     autoRetryCount++
                     isBuffering = true
@@ -150,7 +186,6 @@ fun ExoPlayerView(
                 val isGeoblocked = isGeoBlockedError(error)
 
                 if (!useProxyFallback && localProxyServer != null && isGeoblocked) {
-                    // Activación selectiva y exclusiva de VPN / proxy ante geobloqueo confirmado (HTTP 403 / 451)
                     useProxyFallback = true
                     isBuffering = true
                     isError = false
@@ -183,7 +218,7 @@ fun ExoPlayerView(
         }
     }
 
-    // 3. Sincronización con el ciclo de vida de la Actividad (Pausa y Liberación)
+    // 3. Ciclo de Vida de la Actividad
     DisposableEffect(lifecycleOwner, exoPlayer) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -206,7 +241,7 @@ fun ExoPlayerView(
         }
     }
 
-    // 4. Watchdog: detección de buffering infinito
+    // 4. Watchdog: detección de buffering congelado
     LaunchedEffect(channel.url, retryCount) {
         isBuffering = true
         isError = false
@@ -235,21 +270,227 @@ fun ExoPlayerView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     this.player = exoPlayer
-                    useController = true
+                    useController = false
                 }
             },
             update = { view ->
                 view.player = exoPlayer
                 view.setOnKeyListener { _, keyCode, event ->
-                    if (keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP && event.action == android.view.KeyEvent.ACTION_UP) {
-                        onToggleFavorite()
-                        true
+                    if (event.action == KeyEvent.ACTION_UP) {
+                        hudInteractionTrigger = System.currentTimeMillis()
+                        when (keyCode) {
+                            KeyEvent.KEYCODE_DPAD_UP -> {
+                                onToggleFavorite()
+                                true
+                            }
+                            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                                isHudVisible = !isHudVisible
+                                true
+                            }
+                            else -> false
+                        }
                     } else {
                         false
                     }
                 }
             }
         )
+
+        // HUD SUPERIOR: Datos reales de la emisión (Logo, Nombre, Directo, Proxy, Reloj)
+        AnimatedVisibility(
+            visible = isHudVisible && !isError,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xD9090D16))
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Lado Izquierdo: Logo y Nombre del Canal
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(TvSurfaceContainerHigh)
+                            .padding(4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (channel.logo.isNotBlank()) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(channel.logo)
+                                    .crossfade(true)
+                                    .error(R.drawable.default_tv)
+                                    .fallback(R.drawable.default_tv)
+                                    .build(),
+                                contentDescription = channel.name,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            Image(
+                                painter = painterResource(id = R.drawable.default_tv),
+                                contentDescription = channel.name,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+                    }
+
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = channel.name,
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            // Badge Directo
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(TvLiveRedContainer)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(5.dp)
+                                            .clip(CircleShape)
+                                            .background(TvLiveRed)
+                                    )
+                                    Text(
+                                        text = "DIRECTO",
+                                        color = Color.White,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        // Estado de conexión real (Directa o Proxy Loopback)
+                        Text(
+                            text = if (useProxyFallback) "Modo: Proxy Anti-Geobloqueo Activo" else "Modo: Conexión Directa HLS",
+                            color = if (useProxyFallback) TvSecondary else TvOnSurfaceVariant,
+                            fontSize = 11.5.sp
+                        )
+                    }
+                }
+
+                // Lado Derecho: Reloj y Versión
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(TvSurfaceContainerHigh)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = currentTime,
+                            color = Color.White,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        // HUD INFERIOR: Atajos y Versión de la App en la parte inferior derecha
+        AnimatedVisibility(
+            visible = isHudVisible && !isError,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xD9090D16))
+                    .padding(horizontal = 24.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Atajos en el reproductor
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(TvSurfaceContainerHigh)
+                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                        ) {
+                            Text(text = "ATRÁS", color = Color.White, fontSize = 9.5.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Text(text = "Volver a Canales", color = TvOnSurfaceVariant, fontSize = 11.5.sp)
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(TvSurfaceContainerHigh)
+                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                        ) {
+                            Text(text = "▲", color = TvSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Text(
+                            text = if (isFavorite) "Quitar de Favoritos" else "Añadir a Favoritos",
+                            color = TvOnSurfaceVariant,
+                            fontSize = 11.5.sp
+                        )
+                    }
+                }
+
+                // Versión en la parte inferior derecha
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(TvSurfaceContainerHigh.copy(alpha = 0.7f))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(text = "Chari-IPTV TV", color = TvOnSurfaceVariant, fontSize = 10.sp)
+                        Text(text = appVersion, color = TvPrimaryLight, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
 
         // Overlay: Estado de carga / Buffering
         AnimatedVisibility(
@@ -267,7 +508,7 @@ fun ExoPlayerView(
                     .padding(horizontal = 32.dp, vertical = 24.dp)
             ) {
                 CircularProgressIndicator(
-                    color = Color.White,
+                    color = TvPrimaryFocused,
                     strokeWidth = 3.dp,
                     modifier = Modifier.size(36.dp)
                 )
@@ -291,7 +532,7 @@ fun ExoPlayerView(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xE6080C14)),
+                    .background(Color(0xF0080C14)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
@@ -299,7 +540,7 @@ fun ExoPlayerView(
                     modifier = Modifier
                         .widthIn(min = 480.dp, max = 640.dp)
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF111827))
+                        .background(TvSurface)
                         .border(BorderStroke(1.dp, Color(0x33FFFFFF)), RoundedCornerShape(20.dp))
                         .padding(horizontal = 36.dp, vertical = 28.dp)
                 ) {
@@ -339,7 +580,7 @@ fun ExoPlayerView(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0x33EF4444))
+                            .background(TvLiveRedContainer)
                             .border(BorderStroke(1.dp, Color(0x66EF4444)), RoundedCornerShape(8.dp))
                             .padding(horizontal = 12.dp, vertical = 4.dp)
                     ) {
@@ -411,8 +652,8 @@ fun ExoPlayerView(
                                 focusedBorder = Border(BorderStroke(2.dp, Color.White))
                             ),
                             colors = ClickableSurfaceDefaults.colors(
-                                containerColor = Color(0xFF1E293B),
-                                focusedContainerColor = Color(0xFF334155)
+                                containerColor = TvSurfaceContainerHigh,
+                                focusedContainerColor = TvSurfaceFocused
                             )
                         ) {
                             Row(
@@ -452,4 +693,3 @@ private fun isGeoBlockedError(error: PlaybackException): Boolean {
     return msg.contains("403") || msg.contains("geoblock") || msg.contains("geo-block") ||
             causeMsg.contains("403") || causeMsg.contains("geoblock") || causeMsg.contains("geo-block")
 }
-

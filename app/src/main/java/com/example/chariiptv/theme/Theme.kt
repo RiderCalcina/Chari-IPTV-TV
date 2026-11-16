@@ -10,15 +10,17 @@ private val TvColorScheme = darkColorScheme(
     background = TvBackground,
     surface = TvSurface,
     onPrimary = Color.White,
-    onBackground = Color.White,
-    onSurface = Color.LightGray
+    onBackground = TvOnSurface,
+    onSurface = TvOnSurfaceVariant,
+    secondary = TvSecondary,
+    error = TvLiveRed
 )
 
 @Composable
 fun TVDROIDTheme(
-  darkTheme: Boolean = true,
-  dynamicColor: Boolean = false,
-  content: @Composable () -> Unit,
+    darkTheme: Boolean = true,
+    dynamicColor: Boolean = false,
+    content: @Composable () -> Unit,
 ) {
-  MaterialTheme(colorScheme = TvColorScheme, typography = Typography, content = content)
+    MaterialTheme(colorScheme = TvColorScheme, typography = Typography, content = content)
 }
