@@ -17,3 +17,7 @@ local.properties
 *.hprof
 logcat.txt
 *.apk
+*.aab
+*.keystore
+*.jks
+*backup*

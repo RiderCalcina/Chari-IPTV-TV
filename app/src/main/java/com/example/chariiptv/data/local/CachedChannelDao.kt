@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 
 @Dao
 interface CachedChannelDao {
@@ -18,4 +19,10 @@ interface CachedChannelDao {
 
     @Query("DELETE FROM cached_channels WHERE countryCode = :countryCode")
     suspend fun deleteChannelsByCountry(countryCode: String)
+
+    @Transaction
+    suspend fun replaceChannelsForCountry(countryCode: String, channels: List<CachedChannel>) {
+        deleteChannelsByCountry(countryCode)
+        insertChannels(channels)
+    }
 }

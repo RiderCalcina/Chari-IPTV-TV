@@ -46,90 +46,97 @@ object Constants {
         return SUPPORTED_COUNTRIES[filterKey] ?: filterKey
     }
 
+    private val PAN_REGIONAL_HINTS = listOf(
+        "latin america", "latinamerica", "panregional", "central america",
+        "sudamerica", "suramerica"
+    )
+
+    private val THEMATIC_BRANDS = listOf(
+        "axn", "cinecanal", "cinemax", "hbo", "universal tv", "studio universal",
+        "warner", "sony channel", "sony movies", "star channel", "paramount network",
+        "space", "golden", "de pelicula", "tnt series", "tnt novela", "tnt",
+        "discovery channel", "discovery kids", "discovery science", "discovery turbo", "discovery home",
+        "animal planet", "national geographic", "nat geo", "history", "h2",
+        "disney channel", "disney jr", "cartoon network", "cartoonito", "boomerang",
+        "nickelodeon", "nick jr", "tooncarrusel",
+        "espn", "fox sports", "dsports", "directv sports", "tyc sports", "claro sports", "goltv",
+        "comedy central", "mtv", "e! entertainment", "a&e", "lifetime", "tlc"
+    )
+
+    private val SHORT_BRAND_REGEX = Regex(
+        "\\b(?:${THEMATIC_BRANDS.filter { it.length <= 4 }.joinToString("|") { Regex.escape(it) }})\\b"
+    )
+
+    private val LONG_THEMATIC_BRANDS = THEMATIC_BRANDS.filter { it.length > 4 }
+
+    private val GEO_BLOCKED_TOKENS = listOf(
+        "[geo-blocked]", "(geo-blocked)", "[geoblocked]", "(geoblocked)",
+        "[geo]", "(geo)"
+    )
+
+    private val GEO_TAG_REGEX = Regex("\\bgeo\\b", RegexOption.IGNORE_CASE)
+
+    private val FOREIGN_TOKENS = listOf(
+        "(sweden)", "(suecia)", "(india)", "(pakistan)", "(pakistán)",
+        "(turkiye)", "(turkey)", "(turquía)", "(arabic)", "(árabe)",
+        "(germany)", "(alemania)", "alemania", "(italy)", "(italia)",
+        "(united kingdom)", "(reino unido)", "(uk)", "(france)", "(francia)",
+        "(russia)", "(rusia)", "(japan)", "(japón)", "(korea)", "(corea)",
+        "(china)", "(poland)", "(polonia)", "(greece)", "(grecia)",
+        "(romania)", "(rumania)", "(netherlands)", "(holanda)",
+        "(denmark)", "(dinamarca)", "(norway)", "(noruega)",
+        "(finland)", "(finlandia)", "chequia", "czech",
+        "das erste", "zdf", "kika", "failarmy", "fifa+",
+        "ocko", "óčko", "english", "[eng]", "(eng)", "(vo)", "(vose)"
+    )
+
+    private val NORMALIZE_REGEX = Regex(
+        "\\(\\d+p\\)|\\[(?:not 24/7|geo-blocked|geoblocked)]|\\((?:geo-blocked|sd|hd|fhd)\\)",
+        RegexOption.IGNORE_CASE
+    )
+
     fun isPanRegionalThematicChannel(name: String, url: String = ""): Boolean {
         val lowerName = name.lowercase()
-        val lowerUrl = url.lowercase()
 
         // Canales con nombres explícitos de transmisión panregional o satelital
-        if (lowerName.contains("latin america") || lowerName.contains("latinamerica") ||
-            lowerName.contains("panregional") || lowerName.contains("central america") ||
-            lowerName.contains("sudamerica") || lowerName.contains("suramerica")
-        ) {
-            return true
+        for (hint in PAN_REGIONAL_HINTS) {
+            if (lowerName.contains(hint)) return true
         }
 
         // Marcas panregionales de cine, series, infantiles o deportes de pago
-        val thematicBrands = listOf(
-            "axn", "cinecanal", "cinemax", "hbo", "universal tv", "studio universal",
-            "warner", "sony channel", "sony movies", "star channel", "paramount network",
-            "space", "golden", "de pelicula", "tnt series", "tnt novela", "tnt",
-            "discovery channel", "discovery kids", "discovery science", "discovery turbo", "discovery home",
-            "animal planet", "national geographic", "nat geo", "history", "h2",
-            "disney channel", "disney jr", "cartoon network", "cartoonito", "boomerang",
-            "nickelodeon", "nick jr", "tooncarrusel",
-            "espn", "fox sports", "dsports", "directv sports", "tyc sports", "claro sports", "goltv",
-            "comedy central", "mtv", "e! entertainment", "a&e", "lifetime", "tlc"
-        )
-
-        return thematicBrands.any { brand ->
-            lowerName.startsWith("$brand ") || lowerName.contains(" $brand ") || lowerName.endsWith(" $brand") || lowerName == brand ||
-                    (brand.length > 4 && lowerName.contains(brand))
+        for (brand in LONG_THEMATIC_BRANDS) {
+            if (lowerName.contains(brand)) return true
         }
+        return SHORT_BRAND_REGEX.containsMatchIn(lowerName)
     }
 
     fun isForeignOrBlocked(name: String, url: String = ""): Boolean {
         val lowerName = name.lowercase()
         val lowerUrl = url.lowercase()
 
-        // Excluir canales explícitamente geobloqueados o redes de intranet privadas caídas
-        if (lowerName.contains("[geo-blocked]") || lowerName.contains("(geo-blocked)") ||
-            lowerName.contains("[geoblocked]") || lowerName.contains("(geoblocked)") ||
-            lowerUrl.contains("bantel-cdn1.iptvperu.tv")
-        ) {
+        // Excluir canales explícitamente geobloqueados o redes de intranet privadas / servidores caídos
+        if (lowerUrl.contains("bantel-cdn1.iptvperu.tv")) return true
+        if (lowerUrl.contains("barinaslive1.boldmss.com")) return true
+
+        for (token in GEO_BLOCKED_TOKENS) {
+            if (lowerName.contains(token)) return true
+        }
+
+        // Excluir canales de TDTChannels marcados con GEO o GEO CAT (ej: Esport3 GEO, Teledeporte GEO)
+        // preservando canales válidos de documentales como Nat Geo o National Geographic
+        if (GEO_TAG_REGEX.containsMatchIn(lowerName) && !lowerName.contains("nat geo")) {
             return true
         }
 
         // Excluir emisiones en idiomas extranjeros no hispanos
-        return lowerName.contains("(sweden)") || lowerName.contains("(suecia)") ||
-                lowerName.contains("(india)") ||
-                lowerName.contains("(pakistan)") || lowerName.contains("(pakistán)") ||
-                lowerName.contains("(turkiye)") || lowerName.contains("(turkey)") || lowerName.contains("(turquía)") ||
-                lowerName.contains("(arabic)") || lowerName.contains("(árabe)") ||
-                lowerName.contains("(germany)") || lowerName.contains("(alemania)") || lowerName.contains("alemania") ||
-                lowerName.contains("(italy)") || lowerName.contains("(italia)") ||
-                lowerName.contains("(united kingdom)") || lowerName.contains("(reino unido)") || lowerName.contains("(uk)") ||
-                lowerName.contains("(france)") || lowerName.contains("(francia)") ||
-                lowerName.contains("(russia)") || lowerName.contains("(rusia)") ||
-                lowerName.contains("(japan)") || lowerName.contains("(japón)") ||
-                lowerName.contains("(korea)") || lowerName.contains("(corea)") ||
-                lowerName.contains("(china)") ||
-                lowerName.contains("(poland)") || lowerName.contains("(polonia)") ||
-                lowerName.contains("(greece)") || lowerName.contains("(grecia)") ||
-                lowerName.contains("(romania)") || lowerName.contains("(rumania)") ||
-                lowerName.contains("(netherlands)") || lowerName.contains("(holanda)") ||
-                lowerName.contains("(denmark)") || lowerName.contains("(dinamarca)") ||
-                lowerName.contains("(norway)") || lowerName.contains("(noruega)") ||
-                lowerName.contains("(finland)") || lowerName.contains("(finlandia)") ||
-                lowerName.contains("chequia") || lowerName.contains("czech") ||
-                lowerName.contains("das erste") || lowerName.contains("zdf") || lowerName.contains("kika") ||
-                lowerName.contains("failarmy") || lowerName.contains("fifa+") ||
-                lowerName.contains("ocko") || lowerName.contains("óčko") ||
-                lowerName.contains("english") || lowerName.contains("[eng]") || lowerName.contains("(eng)") ||
-                lowerName.contains("(vo)") || lowerName.contains("(vose)")
+        for (token in FOREIGN_TOKENS) {
+            if (lowerName.contains(token)) return true
+        }
+        return false
     }
 
     fun normalizeChannelName(rawName: String): String {
-        return rawName
-            .replace("\\(\\d+p\\)".toRegex(RegexOption.IGNORE_CASE), "")
-            .replace("\\[not 24/7\\]".toRegex(RegexOption.IGNORE_CASE), "")
-            .replace("\\[geo-blocked\\]".toRegex(RegexOption.IGNORE_CASE), "")
-            .replace("\\(geo-blocked\\)".toRegex(RegexOption.IGNORE_CASE), "")
-            .replace("\\[geoblocked\\]".toRegex(RegexOption.IGNORE_CASE), "")
-            .replace("\\(sd\\)".toRegex(RegexOption.IGNORE_CASE), "")
-            .replace("\\(hd\\)".toRegex(RegexOption.IGNORE_CASE), "")
-            .replace("\\(fhd\\)".toRegex(RegexOption.IGNORE_CASE), "")
-            .trim()
-            .lowercase()
+        return NORMALIZE_REGEX.replace(rawName, "").trim().lowercase()
     }
 
     const val RSS_URL = "https://qwertyaserty.com/rblog/rss"

@@ -33,6 +33,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import coil.size.Precision
 import com.example.chariiptv.R
 import com.example.chariiptv.domain.Channel
 import com.example.chariiptv.theme.*
@@ -82,7 +83,6 @@ fun QuickChannelDrawer(
         modifier = modifier
             .fillMaxHeight()
             .width(340.dp)
-            .shadow(elevation = 24.dp, spotColor = Color.Black)
             .background(TvBackground.copy(alpha = 0.94f))
             .border(
                 BorderStroke(1.dp, Color(0x33FFFFFF)),
@@ -160,11 +160,24 @@ fun QuickChannelDrawer(
             ) {
                 itemsIndexed(
                     items = channels,
-                    key = { index, channel -> "${channel.url}_drawer_$index" }
+                    key = { _, channel -> channel.url }
                 ) { index, channel ->
                     val isPlaying = channel.url == currentChannelUrl
                     val isFav = favorites.contains(channel.url)
                     val isTarget = index == currentIndex
+                    val itemContext = LocalContext.current
+                    val thumbRequest = remember(channel.logo, itemContext) {
+                        if (channel.logo.isNotBlank()) {
+                            ImageRequest.Builder(itemContext)
+                                .data(channel.logo)
+                                .size(72, 72)
+                                .precision(Precision.INEXACT)
+                                .crossfade(false)
+                                .error(R.drawable.default_tv)
+                                .fallback(R.drawable.default_tv)
+                                .build()
+                        } else null
+                    }
 
                     val focusMod = when {
                         isTarget -> Modifier.focusRequester(targetFocusRequester)
@@ -221,14 +234,9 @@ fun QuickChannelDrawer(
                                         .padding(3.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    if (channel.logo.isNotBlank()) {
+                                    if (thumbRequest != null) {
                                         AsyncImage(
-                                            model = ImageRequest.Builder(LocalContext.current)
-                                                .data(channel.logo)
-                                                .crossfade(true)
-                                                .error(R.drawable.default_tv)
-                                                .fallback(R.drawable.default_tv)
-                                                .build(),
+                                            model = thumbRequest,
                                             contentDescription = channel.name,
                                             modifier = Modifier.fillMaxSize(),
                                             contentScale = ContentScale.Fit

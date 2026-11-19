@@ -41,7 +41,7 @@ fun CountrySelectorRow(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        items(countryKeys) { code ->
+        items(countryKeys, key = { it }) { code ->
             val name = Constants.SUPPORTED_COUNTRIES[code] ?: code
             val flag = Constants.COUNTRY_FLAGS[code] ?: "🌐"
             val isCountryActive = code == selectedCountryCode

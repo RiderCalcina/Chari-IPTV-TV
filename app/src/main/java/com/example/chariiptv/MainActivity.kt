@@ -17,7 +17,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -27,6 +29,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,16 +75,19 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         enableEdgeToEdge()
         handleIntent(intent)
 
         setContent {
             TVDROIDTheme {
                 val viewModel: TvViewModel = tvViewModel
-                val uiState by viewModel.uiState.collectAsState()
+                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
                 var notificationMessage by remember { mutableStateOf<String?>(null) }
+                // Estados de scroll elevados para conservar posición al entrar/salir del reproductor
+                val gridState = rememberLazyGridState()
+                val mainRowState = rememberLazyListState()
+                val countryRowState = rememberLazyListState()
 
                 LaunchedEffect(notificationMessage) {
                     if (notificationMessage != null) {
@@ -95,29 +101,8 @@ class MainActivity : ComponentActivity() {
                         .fillMaxSize()
                         .background(TvBackground)
                 ) {
-                    ChannelGridScreen(
-                        selectedFilterId = uiState.selectedFilterId,
-                        selectedCountryCode = uiState.selectedCountryCode,
-                        isCountrySubMenuVisible = uiState.isCountrySubMenuVisible,
-                        rssNews = uiState.rssNews,
-                        onFilterSelected = { filterId, forceRefresh -> viewModel.selectFilter(filterId, forceRefresh) },
-                        onCountrySelected = { code, forceRefresh -> viewModel.selectCountry(code, forceRefresh) },
-                        channels = uiState.channels,
-                        favorites = uiState.favorites,
-                        isLoading = uiState.isLoading,
-                        onChannelClick = { viewModel.playChannel(it) },
-                        onToggleFavorite = {
-                            viewModel.toggleFavorite(it)
-                            notificationMessage = if (uiState.favorites.contains(it.url)) {
-                                "☆ Eliminado de favoritos"
-                            } else {
-                                "⭐ Añadido a favoritos"
-                            }
-                        }
-                    )
-
-                    // Reproductor a Pantalla Completa
                     if (uiState.currentChannel != null) {
+                        // Reproductor a Pantalla Completa (desmonta la grilla y marquee de fondo para liberar GPU/CPU)
                         val currentCategoryTitle = if (uiState.selectedFilterId == "countries") {
                             Constants.SUPPORTED_COUNTRIES[uiState.selectedCountryCode] ?: "Países"
                         } else {
@@ -147,6 +132,30 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
+                    } else {
+                        ChannelGridScreen(
+                            selectedFilterId = uiState.selectedFilterId,
+                            selectedCountryCode = uiState.selectedCountryCode,
+                            isCountrySubMenuVisible = uiState.isCountrySubMenuVisible,
+                            rssNews = uiState.rssNews,
+                            gridState = gridState,
+                            mainRowState = mainRowState,
+                            countryRowState = countryRowState,
+                            onFilterSelected = { filterId, forceRefresh -> viewModel.selectFilter(filterId, forceRefresh) },
+                            onCountrySelected = { code, forceRefresh -> viewModel.selectCountry(code, forceRefresh) },
+                            channels = uiState.channels,
+                            favorites = uiState.favorites,
+                            isLoading = uiState.isLoading,
+                            onChannelClick = { viewModel.playChannel(it) },
+                            onToggleFavorite = {
+                                viewModel.toggleFavorite(it)
+                                notificationMessage = if (uiState.favorites.contains(it.url)) {
+                                    "☆ Eliminado de favoritos"
+                                } else {
+                                    "⭐ Añadido a favoritos"
+                                }
+                            }
+                        )
                     }
 
                     // Notificación Flotante Estilizada (Snackbar TV)
@@ -228,6 +237,9 @@ fun ChannelGridScreen(
     selectedCountryCode: String,
     isCountrySubMenuVisible: Boolean,
     rssNews: String,
+    gridState: LazyGridState,
+    mainRowState: LazyListState,
+    countryRowState: LazyListState,
     onFilterSelected: (String, Boolean) -> Unit,
     onCountrySelected: (String, Boolean) -> Unit,
     channels: List<Channel>,
@@ -236,10 +248,8 @@ fun ChannelGridScreen(
     onChannelClick: (Channel) -> Unit,
     onToggleFavorite: (Channel) -> Unit
 ) {
-    val sortedChannels = remember(channels) { channels.sortedBy { it.name } }
-    val gridState = rememberLazyGridState()
-    val mainRowState = rememberLazyListState()
-    val countryRowState = rememberLazyListState()
+    // Respeta el orden de prioridad 24/7 calculado en Dispatchers.IO y garantiza URLs únicas como clave estable
+    val sortedChannels = remember(channels) { channels.distinctBy { it.url } }
     val selectedFilterFocusRequester = remember { FocusRequester() }
     val selectedCountryFocusRequester = remember { FocusRequester() }
     val coroutineScope = rememberCoroutineScope()
@@ -546,7 +556,7 @@ fun ChannelGridScreen(
                 ) {
                     itemsIndexed(
                         items = sortedChannels,
-                        key = { index, channel -> "${channel.url}_$index" }
+                        key = { _, channel -> channel.url }
                     ) { _, channel ->
                         val isFav = favorites.contains(channel.url)
                         ChannelCardView(

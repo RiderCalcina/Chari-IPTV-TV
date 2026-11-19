@@ -10,6 +10,8 @@ import com.example.chariiptv.tvrecommendations.TvRecommendationManager
 import com.example.chariiptv.util.Constants
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +33,8 @@ class TvViewModel @Inject constructor(
     val uiState: StateFlow<TvUiState> = _uiState.asStateFlow()
 
     private var hasUserManuallySelectedCountry = false
+    private var activeLoadJob: Job? = null
+    private var hasPublishedInitialHomeChannels = false
 
     init {
         // Cargar última pestaña recordada (por defecto 'fav' para el primer inicio)
@@ -66,13 +70,20 @@ class TvViewModel @Inject constructor(
             }
         }
 
+        // Observación única de favoritos (evita doble consulta SQLite)
         viewModelScope.launch {
-            repository.getFavoritesFlow().collect { favs ->
-                _uiState.update { it.copy(favorites = favs.toSet()) }
-                if (_uiState.value.selectedFilterId == "fav") {
-                    val channels = repository.getFavoriteChannels()
-                    _uiState.update { it.copy(channels = channels) }
-                    TvRecommendationManager.updateHomeScreenChannels(context, channels)
+            repository.getFavoriteChannelsFlow().collect { favChannels ->
+                val favUrls = favChannels.mapTo(HashSet(favChannels.size)) { it.url }
+                _uiState.update { state ->
+                    if (state.selectedFilterId == "fav") {
+                        state.copy(favorites = favUrls, channels = favChannels, isLoading = false)
+                    } else {
+                        state.copy(favorites = favUrls)
+                    }
+                }
+                if (favChannels.isNotEmpty()) {
+                    hasPublishedInitialHomeChannels = true
+                    TvRecommendationManager.updateHomeScreenChannels(context, favChannels)
                 }
             }
         }
@@ -150,7 +161,8 @@ class TvViewModel @Inject constructor(
     }
 
     private fun loadFilter(filterId: String, forceRefresh: Boolean = false) {
-        viewModelScope.launch {
+        activeLoadJob?.cancel()
+        activeLoadJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
                 val channels = when (filterId) {
@@ -158,9 +170,12 @@ class TvViewModel @Inject constructor(
                     else -> repository.getChannelsByCategory(filterId, forceRefresh)
                 }
                 _uiState.update { it.copy(isLoading = false, channels = channels) }
-                if (channels.isNotEmpty()) {
+                if (!hasPublishedInitialHomeChannels && channels.isNotEmpty()) {
+                    hasPublishedInitialHomeChannels = true
                     TvRecommendationManager.updateHomeScreenChannels(context, channels)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Error al cargar canales") }
             }
@@ -168,14 +183,18 @@ class TvViewModel @Inject constructor(
     }
 
     private fun loadChannelsByCountry(countryCode: String, forceRefresh: Boolean = false) {
-        viewModelScope.launch {
+        activeLoadJob?.cancel()
+        activeLoadJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
                 val channels = repository.getChannelsByCountry(countryCode, forceRefresh)
                 _uiState.update { it.copy(isLoading = false, channels = channels) }
-                if (channels.isNotEmpty()) {
+                if (!hasPublishedInitialHomeChannels && channels.isNotEmpty()) {
+                    hasPublishedInitialHomeChannels = true
                     TvRecommendationManager.updateHomeScreenChannels(context, channels)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Error al cargar canales") }
             }

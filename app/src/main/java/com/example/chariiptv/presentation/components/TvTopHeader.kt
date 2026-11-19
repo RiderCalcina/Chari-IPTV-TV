@@ -33,12 +33,46 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@Immutable
 data class MainNavItem(
     val id: String,
     val label: String,
     val icon: String,
     val isSpecial: Boolean = false
 )
+
+@Composable
+private fun HeaderLiveClock() {
+    val formatter = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+    var currentTime by remember { mutableStateOf(formatter.format(Date())) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentTime = formatter.format(Date())
+            delay(10_000)
+        }
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(TvSurfaceContainerHigh.copy(alpha = 0.8f))
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = "🕒",
+            fontSize = 11.sp
+        )
+        Text(
+            text = currentTime,
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
 
 @Composable
 fun TvTopHeader(
@@ -51,18 +85,6 @@ fun TvTopHeader(
     rssNews: String,
     modifier: Modifier = Modifier
 ) {
-    // Reloj digital en tiempo real (se actualiza automáticamente cada 10 segundos)
-    var currentTime by remember {
-        mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()))
-    }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-            delay(10_000)
-        }
-    }
-
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -128,26 +150,8 @@ fun TvTopHeader(
                 }
             }
 
-            // Lado Derecho: Reloj en Vivo real del sistema
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(TvSurfaceContainerHigh.copy(alpha = 0.8f))
-                    .padding(horizontal = 12.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = "🕒",
-                    fontSize = 11.sp
-                )
-                Text(
-                    text = currentTime,
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            // Lado Derecho: Reloj aislado (no recompone las pestañas cada 10 segundos)
+            HeaderLiveClock()
         }
 
         // Fila 2: Pestañas de Navegación (Pills D-Pad)
@@ -160,7 +164,7 @@ fun TvTopHeader(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            items(mainNavItems) { item ->
+            items(mainNavItems, key = { it.id }) { item ->
                 val isSelected = item.id == selectedFilterId
                 val isSpecial = item.isSpecial
 

@@ -19,11 +19,19 @@ object TvRecommendationManager {
     private const val TAG = "TvRecommendationMgr"
     private const val CHANNEL_KEY = "chari_iptv_destacados"
 
+    @Volatile
+    private var lastPublishedSignature: String? = null
+
     /**
-     * Sincroniza la fila de recomendaciones en la pantalla de inicio de Android TV
+     * Sincroniza la fila de recomendaciones en la pantalla de inicio de Android TV.
+     * Evita ráfagas IPC redundantes si la selección superior no ha cambiado.
      */
     suspend fun updateHomeScreenChannels(context: Context, channels: List<Channel>) = withContext(Dispatchers.IO) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return@withContext
+        val topChannels = channels.take(15)
+        val signature = topChannels.joinToString("|") { it.url }
+        if (signature.isEmpty() || signature == lastPublishedSignature) return@withContext
+
         try {
             val helper = PreviewChannelHelper(context)
             val allChannels = helper.allChannels
@@ -55,7 +63,6 @@ object TvRecommendationManager {
             }
 
             // Publicar hasta 15 canales destacados
-            val topChannels = channels.take(15)
             for (ch in topChannels) {
                 val intent = Intent(context, MainActivity::class.java).apply {
                     action = Intent.ACTION_VIEW
@@ -85,6 +92,7 @@ object TvRecommendationManager {
                     Log.w(TAG, "Error publicando canal en Home: ${ch.name}", e)
                 }
             }
+            lastPublishedSignature = signature
             Log.i(TAG, "Fila de Android TV actualizada con ${topChannels.size} canales")
         } catch (e: Exception) {
             Log.e(TAG, "Error actualizando canales de Android TV", e)
@@ -92,7 +100,7 @@ object TvRecommendationManager {
     }
 
     /**
-     * Registra o actualiza el canal recién reproducido en la fila "Continuar viendo" (Watch Next)
+     * Registra o actualiza (sin duplicar) el canal recién reproducido en la fila "Continuar viendo" (Watch Next)
      */
     suspend fun recordWatchedChannel(context: Context, channel: Channel) = withContext(Dispatchers.IO) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return@withContext
@@ -107,7 +115,7 @@ object TvRecommendationManager {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
 
-            val program = WatchNextProgram.Builder()
+            val programBuilder = WatchNextProgram.Builder()
                 .setType(TvContractCompat.WatchNextPrograms.TYPE_CHANNEL)
                 .setWatchNextType(TvContractCompat.WatchNextPrograms.WATCH_NEXT_TYPE_CONTINUE)
                 .setTitle(channel.name)
@@ -117,13 +125,46 @@ object TvRecommendationManager {
                 .setLastEngagementTimeUtcMillis(System.currentTimeMillis())
 
             if (channel.logo.isNotBlank()) {
-                program.setPosterArtUri(Uri.parse(channel.logo))
+                programBuilder.setPosterArtUri(Uri.parse(channel.logo))
             }
 
-            helper.publishWatchNextProgram(program.build())
-            Log.i(TAG, "Canal agregado a Watch Next en Android TV: ${channel.name}")
+            val program = programBuilder.build()
+            val existingId = findWatchNextProgramId(context, channel.url)
+            if (existingId != null) {
+                helper.updateWatchNextProgram(program, existingId)
+                Log.i(TAG, "Canal actualizado en Watch Next (sin duplicar): ${channel.name}")
+            } else {
+                helper.publishWatchNextProgram(program)
+                Log.i(TAG, "Canal agregado a Watch Next en Android TV: ${channel.name}")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error agregando a Watch Next", e)
+        }
+    }
+
+    private fun findWatchNextProgramId(context: Context, internalProviderId: String): Long? {
+        return try {
+            context.contentResolver.query(
+                TvContractCompat.WatchNextPrograms.CONTENT_URI,
+                arrayOf(
+                    TvContractCompat.WatchNextPrograms._ID,
+                    TvContractCompat.WatchNextPrograms.COLUMN_INTERNAL_PROVIDER_ID
+                ),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                val idIdx = cursor.getColumnIndex(TvContractCompat.WatchNextPrograms._ID)
+                val providerIdx = cursor.getColumnIndex(TvContractCompat.WatchNextPrograms.COLUMN_INTERNAL_PROVIDER_ID)
+                while (cursor.moveToNext()) {
+                    if (providerIdx >= 0 && cursor.getString(providerIdx) == internalProviderId) {
+                        return if (idIdx >= 0) cursor.getLong(idIdx) else null
+                    }
+                }
+                null
+            }
+        } catch (_: Exception) {
+            null
         }
     }
 }

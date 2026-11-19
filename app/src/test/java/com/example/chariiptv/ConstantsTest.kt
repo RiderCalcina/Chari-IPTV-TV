@@ -2,6 +2,7 @@ package com.example.chariiptv
 
 import com.example.chariiptv.util.Constants
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -40,5 +41,28 @@ class ConstantsTest {
         Constants.SPANISH_COUNTRIES.forEach { code ->
             assertTrue("Flag for $code should exist", Constants.COUNTRY_FLAGS.containsKey(code))
         }
+    }
+
+    @Test
+    fun isForeignOrBlocked_blocksBarinasliveServer() {
+        assertTrue(Constants.isForeignOrBlocked("ESPN 2 (1080p)", "https://barinaslive1.boldmss.com/live/espn2.m3u8"))
+        assertFalse(Constants.isForeignOrBlocked("ESPN Colombia (1080p)", "https://edge01.othercdn.com/live/espn.m3u8"))
+    }
+
+    @Test
+    fun isForeignOrBlocked_blocksTdtChannelsGeoTokens() {
+        assertTrue(Constants.isForeignOrBlocked("Teledeporte GEO", "https://rtvelivestream.rtve.es/live.m3u8"))
+        assertTrue(Constants.isForeignOrBlocked("Esport3 GEO", "https://directes-tv-es.3catdirectes.cat/live.m3u8"))
+        assertTrue(Constants.isForeignOrBlocked("Esport3 GEO CAT", "https://directes-tv-cat.3catdirectes.cat/live.m3u8"))
+        assertTrue(Constants.isForeignOrBlocked("Clan GEO", "https://rtvelivestream.rtve.es/live.m3u8"))
+        assertTrue(Constants.isForeignOrBlocked("Canal Sur (geo-blocked)", "https://example.com/live.m3u8"))
+    }
+
+    @Test
+    fun isForeignOrBlocked_preservesValidDocumentaryAndStandardChannels() {
+        assertFalse(Constants.isForeignOrBlocked("Nat Geo Wild (1080p)", "https://example.com/live.m3u8"))
+        assertFalse(Constants.isForeignOrBlocked("National Geographic", "https://example.com/live.m3u8"))
+        assertFalse(Constants.isForeignOrBlocked("Teledeporte", "https://rtvelivestream.rtve.es/live.m3u8"))
+        assertFalse(Constants.isForeignOrBlocked("Esport3", "https://directes-tv-int.3catdirectes.cat/live.m3u8"))
     }
 }

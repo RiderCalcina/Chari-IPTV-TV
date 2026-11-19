@@ -97,13 +97,20 @@ fun ExoPlayerView(
     val okHttpClient = playerDependencies?.okHttpClient()
     val localProxyServer = playerDependencies?.localHlsProxyServer()
 
+    val sources = remember(channel) { channel.allSources() }
+    var currentSourceIndex by remember(channel.url) { mutableIntStateOf(0) }
+    val activeSource = sources.getOrElse(currentSourceIndex) { sources.first() }
+
     var isBuffering by remember { mutableStateOf(true) }
     var isError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
     var retryCount by remember { mutableIntStateOf(0) }
-    var autoRetryCount by remember(channel.url) { mutableIntStateOf(0) }
-    var useProxyFallback by remember(channel.url) { mutableStateOf(false) }
+    var autoRetryCount by remember(channel.url, currentSourceIndex) { mutableIntStateOf(0) }
+    var useProxyFallback by remember(channel.url, currentSourceIndex) { mutableStateOf(false) }
+    var useAutoReferer by remember(channel.url, currentSourceIndex) { mutableStateOf(false) }
     val retryFocusRequester = remember { FocusRequester() }
+    val latestSources by rememberUpdatedState(sources)
+    val latestProxyServer by rememberUpdatedState(localProxyServer)
 
     // Cajón lateral de canales rápidos (Zapping sin salir del reproductor)
     var isSideDrawerVisible by remember { mutableStateOf(false) }
@@ -112,31 +119,40 @@ fun ExoPlayerView(
     var isHudVisible by remember { mutableStateOf(true) }
     var hudInteractionTrigger by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
-    var currentTime by remember {
-        mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()))
-    }
-
     val appVersion = remember(context) {
         try {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            "v${packageInfo.versionName ?: "1.1"}"
+            "v${packageInfo.versionName ?: "1.2"}"
         } catch (_: Exception) {
-            "v1.1"
+            "v1.2"
         }
     }
 
     val channelsList = remember(categoryChannels, channel) {
-        if (categoryChannels.isNotEmpty()) categoryChannels else listOf(channel)
+        if (categoryChannels.isNotEmpty()) categoryChannels.distinctBy { it.url } else listOf(channel)
+    }
+
+    // Mantener pantalla encendida exclusivamente durante la reproducción (evita burn-in OLED en menús)
+    DisposableEffect(activity) {
+        val window = activity?.window
+        window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
     }
 
     // Interceptor directo a nivel de actividad para eventos del control remoto
     // Garantiza que el D-Pad Izquierda abra SIEMPRE el cajón lateral sin depender del foco de AndroidView
-    DisposableEffect(activity, isSideDrawerVisible, channelsList, channel.url) {
+    DisposableEffect(activity, isSideDrawerVisible, isError, channelsList, channel.url) {
         activity?.playerKeyHandler = { event ->
             val keyCode = event.keyCode
             val isActionDown = event.action == KeyEvent.ACTION_DOWN
 
-            if (!isSideDrawerVisible) {
+            if (isError) {
+                // Cuando hay error visible en pantalla, permitir que TODOS los eventos (D-Pad y Enter/OK)
+                // fluyan directamente a los botones "Reintentar" y "Volver a Canales"
+                false
+            } else if (!isSideDrawerVisible) {
                 when (keyCode) {
                     KeyEvent.KEYCODE_DPAD_LEFT -> {
                         if (isActionDown && event.repeatCount == 0) {
@@ -201,31 +217,20 @@ fun ExoPlayerView(
         isHudVisible = false
     }
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-            delay(15_000)
-        }
-    }
-
-    // Respaldo de navegación con la tecla Atrás
-    BackHandler(enabled = isSideDrawerVisible) {
-        isSideDrawerVisible = false
-    }
-
-    BackHandler(enabled = !isSideDrawerVisible) {
-        onClose()
-    }
-
-    val activeStreamUrl = remember(channel.url, useProxyFallback, retryCount) {
+    val activeStreamUrl = remember(activeSource, useProxyFallback, useAutoReferer, retryCount) {
         if (useProxyFallback && localProxyServer != null) {
-            localProxyServer.buildProxyUrl(channel.url)
+            localProxyServer.buildProxyUrl(
+                streamUrl = activeSource.url,
+                referer = activeSource.referer,
+                userAgent = activeSource.userAgent,
+                autoReferer = useAutoReferer && activeSource.referer.isBlank()
+            )
         } else {
-            channel.url
+            activeSource.url
         }
     }
 
-    // 1. Instancia optimizada de ExoPlayer con FFmpeg y política de reintentos
+    // 1. Instancia limpia y aislada de ExoPlayer por cada cambio de URL o reintento
     val exoPlayer = remember(activeStreamUrl, retryCount) {
         PlayerBuilder.build(context, okHttpClient).apply {
             setMediaItem(MediaItem.fromUri(activeStreamUrl))
@@ -234,7 +239,26 @@ fun ExoPlayerView(
         }
     }
 
-    // 2. Liberación garantizada de audio y red al cambiar de canal o desmontar
+    LaunchedEffect(activeStreamUrl, retryCount) {
+        isBuffering = true
+        isError = false
+        errorMessage = ""
+    }
+
+    // Respaldo de navegación con la tecla Atrás
+    BackHandler(enabled = isSideDrawerVisible) {
+        isSideDrawerVisible = false
+    }
+
+    BackHandler(enabled = !isSideDrawerVisible) {
+        try {
+            exoPlayer.stop()
+            exoPlayer.clearMediaItems()
+        } catch (_: Exception) {}
+        onClose()
+    }
+
+    // 2. Liberación garantizada de audio y red al desmontar el reproductor
     DisposableEffect(exoPlayer) {
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -259,7 +283,10 @@ fun ExoPlayerView(
                     return
                 }
 
-                if (autoRetryCount < 2) {
+                val httpCode = extractHttpStatusCode(error)
+                val isHardHttpFailure = httpCode in setOf(401, 403, 404, 410, 451)
+
+                if (!isHardHttpFailure && autoRetryCount < 1) {
                     autoRetryCount++
                     isBuffering = true
                     try {
@@ -271,9 +298,24 @@ fun ExoPlayerView(
                 }
 
                 val isGeoblocked = isGeoBlockedError(error)
+                val proxy = latestProxyServer
 
-                if (!useProxyFallback && localProxyServer != null && isGeoblocked) {
+                if (!useProxyFallback && proxy != null && isGeoblocked) {
                     useProxyFallback = true
+                    useAutoReferer = true
+                    autoRetryCount = 0
+                    isBuffering = true
+                    isError = false
+                    return
+                }
+
+                // Saltar automáticamente al siguiente servidor espejo (mirror) si existe
+                val availableSources = latestSources
+                if (currentSourceIndex + 1 < availableSources.size) {
+                    currentSourceIndex++
+                    useProxyFallback = false
+                    useAutoReferer = false
+                    autoRetryCount = 0
                     isBuffering = true
                     isError = false
                     return
@@ -281,12 +323,16 @@ fun ExoPlayerView(
 
                 isBuffering = false
                 isError = true
+                try {
+                    exoPlayer.stop()
+                    exoPlayer.clearMediaItems()
+                } catch (_: Exception) {}
                 errorMessage = when (error.errorCode) {
                     PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
                     PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ->
                         "No se pudo conectar con el servidor emisor de la señal. Verifica tu conexión a internet."
                     PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ->
-                        "El servidor del canal rechazó la conexión (posible geobloqueo o transmisión fuera de línea)."
+                        "El servidor del canal rechazó la conexión (HTTP ${httpCode ?: "error"}: posible geobloqueo o señal fuera de línea)."
                     PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
                     PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED ->
                         "El formato de la transmisión no es compatible con el reproductor."
@@ -299,13 +345,19 @@ fun ExoPlayerView(
 
         onDispose {
             exoPlayer.removeListener(listener)
-            exoPlayer.stop()
-            exoPlayer.clearMediaItems()
-            exoPlayer.release()
+            try {
+                exoPlayer.stop()
+                exoPlayer.clearMediaItems()
+            } catch (_: Exception) {}
+            Thread {
+                try {
+                    exoPlayer.release()
+                } catch (_: Exception) {}
+            }.start()
         }
     }
 
-    // 3. Ciclo de Vida de la Actividad
+    // 3. Ciclo de Vida de la Actividad (pausa/reanuda sin doble release)
     DisposableEffect(lifecycleOwner, exoPlayer) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -314,10 +366,6 @@ fun ExoPlayerView(
                 }
                 Lifecycle.Event.ON_RESUME -> {
                     if (!isError) exoPlayer.play()
-                }
-                Lifecycle.Event.ON_DESTROY -> {
-                    exoPlayer.stop()
-                    exoPlayer.release()
                 }
                 else -> {}
             }
@@ -328,16 +376,26 @@ fun ExoPlayerView(
         }
     }
 
-    // 4. Watchdog: detección de buffering congelado
-    LaunchedEffect(channel.url, retryCount) {
-        isBuffering = true
-        isError = false
-        errorMessage = ""
-        delay(20_000)
+    // 4. Watchdog reactivo: si una fuente queda congelada 15 s, salta al siguiente mirror antes de declarar error
+    LaunchedEffect(isBuffering, isError, activeStreamUrl, retryCount, currentSourceIndex) {
         if (isBuffering && !isError) {
-            isBuffering = false
-            isError = true
-            errorMessage = "El servidor emisor no respondió a tiempo. La señal podría estar temporalmente saturada o fuera de emisión."
+            delay(15_000)
+            if (isBuffering && !isError) {
+                if (currentSourceIndex + 1 < sources.size) {
+                    currentSourceIndex++
+                    useProxyFallback = false
+                    useAutoReferer = false
+                    autoRetryCount = 0
+                } else {
+                    isBuffering = false
+                    isError = true
+                    try {
+                        exoPlayer.stop()
+                        exoPlayer.clearMediaItems()
+                    } catch (_: Exception) {}
+                    errorMessage = "El servidor emisor no respondió a tiempo. La señal podría estar temporalmente saturada o fuera de emisión."
+                }
+            }
         }
     }
 
@@ -348,6 +406,16 @@ fun ExoPlayerView(
                 retryFocusRequester.requestFocus()
             } catch (_: Exception) {}
         }
+    }
+
+    val hudLogoRequest = remember(channel.logo, context) {
+        ImageRequest.Builder(context)
+            .data(channel.logo)
+            .size(128, 128)
+            .crossfade(false)
+            .error(R.drawable.default_tv)
+            .fallback(R.drawable.default_tv)
+            .build()
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
@@ -361,7 +429,12 @@ fun ExoPlayerView(
                 }
             },
             update = { view ->
-                view.player = exoPlayer
+                if (view.player !== exoPlayer) {
+                    view.player = exoPlayer
+                }
+            },
+            onRelease = { view ->
+                view.player = null
             }
         )
 
@@ -397,12 +470,7 @@ fun ExoPlayerView(
                     ) {
                         if (channel.logo.isNotBlank()) {
                             AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(channel.logo)
-                                    .crossfade(true)
-                                    .error(R.drawable.default_tv)
-                                    .fallback(R.drawable.default_tv)
-                                    .build(),
+                                model = hudLogoRequest,
                                 contentDescription = channel.name,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Fit
@@ -456,33 +524,23 @@ fun ExoPlayerView(
                         }
 
                         // Estado de conexión real (Directa o Proxy Loopback)
+                        val modeLabel = when {
+                            useProxyFallback && (activeSource.referer.isNotBlank() || activeSource.userAgent.isNotBlank()) ->
+                                "Modo: Proxy con Cabeceras"
+                            useProxyFallback -> "Modo: Proxy con Referer"
+                            else -> "Modo: Conexión Directa"
+                        }
+                        val sourceSuffix = if (sources.size > 1) " · Fuente ${currentSourceIndex + 1}/${sources.size}" else ""
                         Text(
-                            text = if (useProxyFallback) "Modo: Proxy Anti-Geobloqueo Activo" else "Modo: Conexión Directa HLS",
+                            text = modeLabel + sourceSuffix,
                             color = if (useProxyFallback) TvSecondary else TvOnSurfaceVariant,
                             fontSize = 11.5.sp
                         )
                     }
                 }
 
-                // Lado Derecho: Reloj
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(TvSurfaceContainerHigh)
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = currentTime,
-                            color = Color.White,
-                            fontSize = 12.5.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+                // Lado Derecho: Reloj aislado (no recompone el reproductor ni el HUD completo)
+                PlayerClockBadge()
             }
         }
 
@@ -627,6 +685,14 @@ fun ExoPlayerView(
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold
                 )
+                if (sources.size > 1) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Probando fuente ${currentSourceIndex + 1} de ${sources.size}",
+                        color = TvOnSurfaceVariant,
+                        fontSize = 12.sp
+                    )
+                }
             }
         }
 
@@ -654,10 +720,7 @@ fun ExoPlayerView(
                 ) {
                     if (channel.logo.isNotBlank()) {
                         SubcomposeAsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(channel.logo)
-                                .crossfade(true)
-                                .build(),
+                            model = hudLogoRequest,
                             contentDescription = channel.name,
                             modifier = Modifier.size(64.dp),
                             contentScale = ContentScale.Fit
@@ -720,6 +783,10 @@ fun ExoPlayerView(
                     ) {
                         Surface(
                             onClick = {
+                                currentSourceIndex = 0
+                                autoRetryCount = 0
+                                useAutoReferer = false
+                                useProxyFallback = false
                                 isError = false
                                 isBuffering = true
                                 retryCount++
@@ -752,7 +819,13 @@ fun ExoPlayerView(
                         }
 
                         Surface(
-                            onClick = onClose,
+                            onClick = {
+                                try {
+                                    exoPlayer.stop()
+                                    exoPlayer.clearMediaItems()
+                                } catch (_: Exception) {}
+                                onClose()
+                            },
                             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
                             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
                             border = ClickableSurfaceDefaults.border(
@@ -785,16 +858,48 @@ fun ExoPlayerView(
     }
 }
 
-private fun isGeoBlockedError(error: PlaybackException): Boolean {
+@Composable
+private fun PlayerClockBadge() {
+    val formatter = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+    var currentTime by remember { mutableStateOf(formatter.format(Date())) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentTime = formatter.format(Date())
+            delay(15_000)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(TvSurfaceContainerHigh)
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = currentTime,
+            color = Color.White,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+private fun extractHttpStatusCode(error: PlaybackException): Int? {
     var cause: Throwable? = error.cause
     while (cause != null) {
         if (cause is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
-            val code = cause.responseCode
-            if (code == 403 || code == 451) {
-                return true
-            }
+            return cause.responseCode
         }
         cause = cause.cause
+    }
+    return null
+}
+
+private fun isGeoBlockedError(error: PlaybackException): Boolean {
+    val code = extractHttpStatusCode(error)
+    if (code == 403 || code == 451) {
+        return true
     }
     val msg = (error.message ?: "").lowercase()
     val causeMsg = (error.cause?.message ?: "").lowercase()

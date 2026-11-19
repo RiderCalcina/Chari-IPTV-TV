@@ -2,7 +2,6 @@ plugins {
   alias(libs.plugins.android.application)
   id("org.jetbrains.kotlin.android")
   alias(libs.plugins.compose.compiler)
-  alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.ksp)
   id("com.google.dagger.hilt.android") version "2.51.1"
 }
@@ -14,14 +13,32 @@ android {
         applicationId = "com.example.chariiptv"
         minSdk = 24
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
+    }
+
+    signingConfigs {
+        create("release") {
+            val keystoreFile = project.rootProject.file("release.keystore")
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
+                keyAlias = System.getenv("KEY_ALIAS") ?: "chariiptv"
+                keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+            }
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            val releaseKeystore = project.rootProject.file("release.keystore")
+            signingConfig = if (releaseKeystore.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -84,7 +101,7 @@ dependencies {
   // Custom TVDROID Dependencies
   implementation("com.squareup.okhttp3:okhttp:4.12.0")
   implementation("com.squareup.okhttp3:okhttp-dnsoverhttps:4.12.0")
-  val media3Version = "1.2.0"
+  val media3Version = "1.9.0"
   implementation("androidx.media3:media3-exoplayer:$media3Version")
   implementation("androidx.media3:media3-exoplayer-hls:$media3Version")
   implementation("androidx.media3:media3-exoplayer-dash:$media3Version")
@@ -98,10 +115,6 @@ dependencies {
   implementation("androidx.tv:tv-foundation:1.0.0-alpha11")
   implementation("androidx.tv:tv-material:1.0.0")
   implementation("androidx.tvprovider:tvprovider:1.0.0")
-
-  // Retrofit
-  implementation("com.squareup.retrofit2:retrofit:2.11.0")
-  implementation("com.squareup.retrofit2:converter-gson:2.11.0")
 
   // Room
   val room_version = "2.6.1"

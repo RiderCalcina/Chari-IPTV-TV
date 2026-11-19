@@ -5,7 +5,6 @@ import androidx.room.Room
 import com.example.chariiptv.data.local.AppDatabase
 import com.example.chariiptv.data.local.FavoriteDao
 import com.example.chariiptv.data.local.CachedChannelDao
-import com.example.chariiptv.data.remote.M3uApiService
 import com.example.chariiptv.player.LocalHlsProxyServer
 import dagger.Module
 import dagger.Provides
@@ -18,12 +17,10 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.dnsoverhttps.DnsOverHttps
-import retrofit2.Retrofit
 import java.io.File
 import java.net.InetAddress
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
-import javax.inject.Named
 import javax.inject.Singleton
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
@@ -98,7 +95,7 @@ object AppModule {
                 override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
                 override fun getAcceptedIssuers() = arrayOf<X509Certificate>()
             })
-            val sslContext = SSLContext.getInstance("SSL")
+            val sslContext = SSLContext.getInstance("TLS")
             sslContext.init(null, trustAllCerts, java.security.SecureRandom())
             OkHttpClient.Builder()
                 .dns(dohDns)
@@ -126,34 +123,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    @Named("pingOkHttpClient")
-    fun providePingOkHttpClient(okHttpClient: OkHttpClient): OkHttpClient {
-        return okHttpClient.newBuilder()
-            .connectTimeout(2500, TimeUnit.MILLISECONDS)
-            .readTimeout(2500, TimeUnit.MILLISECONDS)
-            .callTimeout(3000, TimeUnit.MILLISECONDS)
-            .build()
-    }
-
-    @Provides
-    @Singleton
     fun provideLocalHlsProxyServer(okHttpClient: OkHttpClient): LocalHlsProxyServer {
         return LocalHlsProxyServer(okHttpClient)
-    }
-
-    @Provides
-    @Singleton
-    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
-        return Retrofit.Builder()
-            .baseUrl("https://iptv-org.github.io/iptv/")
-            .client(okHttpClient)
-            .build()
-    }
-
-    @Provides
-    @Singleton
-    fun provideM3uApiService(retrofit: Retrofit): M3uApiService {
-        return retrofit.create(M3uApiService::class.java)
     }
 
     @Provides
@@ -163,7 +134,10 @@ object AppModule {
             context,
             AppDatabase::class.java,
             "tvdroid_db"
-        ).fallbackToDestructiveMigration().build()
+        )
+            .addMigrations(AppDatabase.MIGRATION_11_12)
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides

@@ -12,5 +12,9 @@ data class CachedChannel(
     val url: String,
     val name: String,
     val logo: String,
-    val countryCode: String
+    val countryCode: String,
+    val userAgent: String = "",
+    val referer: String = "",
+    val alternateSourcesJson: String = "",
+    val updatedAt: Long = System.currentTimeMillis()
 )

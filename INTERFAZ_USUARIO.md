@@ -1,4 +1,4 @@
-# 📺 Interfaz de Usuario: Chari-IPTV TV (v1.1)
+# 📺 Interfaz de Usuario: Chari-IPTV TV (v1.2)
 
 La interfaz de usuario de **Chari-IPTV TV** está diseñada específicamente para Android TV y Google TV utilizando el moderno kit de herramientas **Jetpack Compose (androidx.tv.material3)** y las pautas de diseño para salas de estar **Obsidian Cinema TV (10-Foot UI)**. A continuación, se detalla cada aspecto visual, interactivo y de navegación de la aplicación.
 
@@ -10,7 +10,7 @@ La interfaz de usuario de **Chari-IPTV TV** está diseñada específicamente par
 - **Navegación D-Pad Pura:** El 100% de los elementos interactivos responden al control remoto convencional (botones direccionales: arriba, abajo, izquierda, derecha, OK y Atrás).
 - **Zonas Seguras contra Sobrebarrido (*TV Safe Margins*):** Márgenes perimétricos garantizados de 48-64dp para impedir recortes de texto en pantallas antiguas o proyectores.
 - **Enfoque Exclusivo en Habla Hispana:** Todos los canales y categorías disponibles pertenecen rigurosamente a señales oficiales en idioma español (Hispanoamérica y España).
-- **Transparencia y Cero Datos Falsos:** La app no cuenta con sistema de usuarios (sin login, cuentas ni avatares). Tampoco muestra guías EPG simuladas, métricas inventadas de red o previews de video falsas; toda la telemetría e indicadores mostrados (reloj `HH:mm`, estado del proxy anti-geobloqueo, listas de canales) son 100% reales.
+- **Transparencia y Cero Datos Falsos:** La app no cuenta con sistema de usuarios (sin login, cuentas ni avatares). Tampoco muestra guías EPG simuladas, métricas inventadas de red o previews de video falsas; toda la telemetría e indicadores mostrados (reloj `HH:mm`, modo de conexión en directo o proxy, indicador de fuente espejo `Fuente X/Y`) son 100% reales.
 
 ---
 
@@ -19,7 +19,7 @@ En la parte superior se presentan botones interactivos estilo cápsula refinada 
 - **Botón "Importante" (Primero en la barra):** Destacado con acento dorado/ámbar (`#F59E0B`). Al pulsarlo abre un diálogo interactivo panorámico con 3 Códigos QR simétricos para donaciones (PayPal y Yape), visita al sitio web oficial del desarrollador y aviso legal de exención de responsabilidad.
 - **⭐ Botón "Favoritos" (Pestaña Inicial por Defecto):** Al iniciar la aplicación por primera vez, se sitúa de forma predeterminada en este filtro. En inicios posteriores, recuerda la última pestaña visitada por el usuario. Si aún no hay canales guardados, muestra una pantalla explicativa limpia.
 - **🌎 Botón "Países" (Entre Favoritos y Deportes):** Activa la selección geográfica. Al seleccionarse, despliega una **segunda fila (sub-selector)** con todos los países soportados de Hispanoamérica y España.
-- **⚽ Botón "Deportes":** Filtra canales de transmisiones deportivas en español.
+- **⚽ Botón "Deportes":** Filtra canales de transmisiones deportivas en español, con purga de servidores permanentemente caídos y variantes con bloqueo geográfico.
 - **📰 Botón "Noticias":** Filtra canales informativos y de actualidad en vivo en español.
 - **🎬 Botón "Películas":** Filtra señales de cine en habla hispana, excluyendo canales generalistas, noticias o radios.
 - **📺 Botón "Series":** Filtra canales de series, novelas y ficción televisiva en español.
@@ -61,7 +61,7 @@ En la parte superior se presentan botones interactivos estilo cápsula refinada 
 Ubicada en la parte inferior de la pantalla principal:
 - **Lado Izquierdo:** Guía de teclas del control remoto (`[OK] Reproducir`, `[MANTENER OK] Favorito`, `[ATRÁS] Subir a Pestañas`) y conteo real de canales activos en la categoría/país en curso.
 - **Lado Derecho (Mandatorio):** Identificador de versión oficial de la aplicación, legible y fijo en la esquina inferior derecha:  
-  **`Chari-IPTV TV v1.1`** (obtenido dinámicamente de `PackageManager`).
+  **`Chari-IPTV TV v1.2`** (obtenido dinámicamente de `PackageManager`).
 
 ---
 
@@ -83,6 +83,7 @@ Al presionar el botón **Importante**, se despliega una ventana modal interactiv
 ### Pantalla Completa & Conmutación en Caliente
 - Al seleccionar cualquier canal, el reproductor ocupa toda la pantalla con fondo negro puro.
 - La instancia de `ExoPlayer` optimizada con decodificador de audio FFmpeg reproduce de inmediato la señal HLS o MPEG-DASH.
+- **Aislamiento de Ciclo de Vida:** La instancia de ExoPlayer se recrea limpiamente por cada URL y reintento (`remember(activeStreamUrl, retryCount)`), evitando por completo la contaminación de búferes o decodificadores entre transmisiones distintas.
 
 ### Cajón Lateral de Canales (*Quick Channel Drawer* - Zapping Rápido):
 - **Activación:** Mientras se reproduce cualquier canal, presionar **D-Pad Izquierda (◀)** en el control remoto.
@@ -97,16 +98,25 @@ Al presionar el botón **Importante**, se despliega una ventana modal interactiv
   - `▶ (Derecha)` o `Atrás`: Cierran el cajón lateral y devuelven el foco completo al video a pantalla completa.
 
 ### Intercepción Nativa en la Actividad (`MainActivity.dispatchKeyEvent`):
-- Los eventos físicos del control remoto se capturan directamente en `MainActivity.dispatchKeyEvent` antes de que el `SurfaceView` de ExoPlayer pueda absorberlos, garantizando que el D-Pad responda siempre al 100%.
+- Los eventos físicos del control remoto se capturan directamente en `MainActivity.dispatchKeyEvent`.
+- En reproducción normal, garantiza que las teclas direccionales no sean absorbidas por el `SurfaceView`.
+- **Ante errores (`isError == true`), cede inmediatamente el control**, permitiendo que el D-Pad navegue y accione los botones de la interfaz de error con total libertad.
 
 ### HUD Superior e Inferior del Reproductor:
-- **HUD Superior:** Logotipo del canal, nombre en grande, insignia `DIRECTO`, estado real de la conexión (`Modo: Conexión Directa HLS` o `Modo: Proxy Anti-Geobloqueo Activo`) y reloj en tiempo real.
-- **HUD Inferior:** Atajos de reproducción (`[◀] Lista de Canales`, `[ATRÁS] Volver a Menú`, `[▲] Alternar Favorito`) y versión **`v1.1`** en la esquina inferior derecha.
+- **HUD Superior:** Logotipo del canal, nombre en grande, insignia `DIRECTO`, telemetría de conexión en tiempo real:
+  - `Modo: Conexión Directa` (emisión nativa directa a máxima velocidad).
+  - `Modo: Proxy con Cabeceras` o `Modo: Proxy con Referer` (cuando se conmuta automáticamente tras un 403 Forbidden).
+  - Indicador de fuente activa `Fuente X/Y` cuando el canal posee múltiples streams espejo registrados.
+  - Reloj digital en tiempo real (`HH:mm`).
+- **HUD Inferior:** Atajos de reproducción (`[◀] Lista de Canales`, `[ATRÁS] Volver a Menú`, `[▲] Alternar Favorito`) y versión oficial **`v1.2`** en la esquina inferior derecha.
 - **Auto-Ocultado:** El HUD se oculta automáticamente tras 5 segundos de inactividad o puede alternarse con el botón central **OK**.
 
-### Manejo de Fallos & Proxy Anti-Geobloqueo:
-- Si una señal emite HTTP 403 Forbidden o HTTP 451, el reproductor activa automáticamente el micro-proxy loopback (`LocalHlsProxyServer`) reescribiendo cabeceras para saltar el bloqueo geográfico.
-- Si la señal está caída físicamente, se muestra una ventana amigable de error con el logo, descripción y dos botones enfocables: **🔄 Reintentar** y **⬅️ Volver a Canales**.
+### Manejo de Fallos & Diálogo de Error Resiliente:
+- Si una señal emite HTTP 403 Forbidden o HTTP 451, el reproductor conmuta de manera transparente al micro-proxy loopback (`LocalHlsProxyServer`) reescribiendo cabeceras para saltar el bloqueo geográfico.
+- Si el canal posee fuentes espejo alternativas, realiza conmutación automática de fuente antes de dar error.
+- Si la señal está caída físicamente o no responde tras 6 reintentos consecutivos (`IptvLoadErrorPolicy`), se muestra un diálogo modal centrado con el logotipo del canal, aviso de *Señal Temporalmente No Disponible* y dos botones enfocables con D-Pad:
+  - **🔄 Reintentar:** Reinicia el ciclo de carga del stream.
+  - **⬅️ Volver a Canales:** Detiene la reproducción, libera los recursos de ExoPlayer en segundo plano (*Background Async Release*) y regresa instantáneamente a la grilla sin congelamientos ni pantallas negras.
 
 ---
 

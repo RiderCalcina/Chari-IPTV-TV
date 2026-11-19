@@ -8,5 +8,8 @@ data class FavoriteChannel(
     @PrimaryKey val url: String,
     val name: String = "",
     val logo: String = "",
-    val addedAt: Long = System.currentTimeMillis()
+    val addedAt: Long = System.currentTimeMillis(),
+    val userAgent: String = "",
+    val referer: String = "",
+    val alternateSourcesJson: String = ""
 )

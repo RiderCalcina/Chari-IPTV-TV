@@ -10,7 +10,9 @@ import java.io.PrintWriter
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
-import java.util.concurrent.Executors
+import java.util.concurrent.SynchronousQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,16 +22,27 @@ class LocalHlsProxyServer @Inject constructor(
 ) {
     companion object {
         private const val TAG = "LocalHlsProxyServer"
+        private const val STREAM_BUFFER_SIZE = 32 * 1024
+        private val TAG_URI_REGEX = Regex("URI=\"([^\"]+)\"")
         private const val DEFAULT_UA =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
     }
 
     private var serverSocket: ServerSocket? = null
+    @Volatile
     var port: Int = 0
         private set
-    private val executor = Executors.newCachedThreadPool { runnable ->
-        Thread(runnable).apply { isDaemon = true }
-    }
+
+    // Pool elástico para TV Boxes: sin rechazo de peticiones (CallerRunsPolicy) y reciclaje a los 30 s
+    private val workerExecutor = ThreadPoolExecutor(
+        2,
+        16,
+        30L,
+        TimeUnit.SECONDS,
+        SynchronousQueue(),
+        { runnable -> Thread(runnable, "hls-proxy-worker").apply { isDaemon = true } },
+        ThreadPoolExecutor.CallerRunsPolicy()
+    )
 
     @Volatile
     private var isRunning = false
@@ -45,17 +58,24 @@ class LocalHlsProxyServer @Inject constructor(
             serverSocket = ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"))
             port = serverSocket!!.localPort
             isRunning = true
-            Log.i(TAG, "LocalHlsProxyServer iniciado en loopback puerto $port")
+            Log.i(TAG, "LocalHlsProxyServer iniciado bajo demanda en loopback puerto $port")
 
-            executor.execute {
-                while (isRunning && !serverSocket!!.isClosed) {
+            Thread({
+                while (isRunning && serverSocket?.isClosed == false) {
                     try {
-                        val clientSocket = serverSocket!!.accept()
-                        executor.execute { handleConnection(clientSocket) }
+                        val clientSocket = serverSocket?.accept() ?: break
+                        try {
+                            workerExecutor.execute { handleConnection(clientSocket) }
+                        } catch (_: Exception) {
+                            try { clientSocket.close() } catch (_: Exception) {}
+                        }
                     } catch (e: Exception) {
                         if (!isRunning) break
                     }
                 }
+            }, "hls-proxy-acceptor").apply {
+                isDaemon = true
+                start()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error iniciando LocalHlsProxyServer", e)
@@ -66,7 +86,8 @@ class LocalHlsProxyServer @Inject constructor(
         streamUrl: String,
         referer: String = "",
         origin: String = "",
-        userAgent: String = ""
+        userAgent: String = "",
+        autoReferer: Boolean = false
     ): String {
         if (!isRunning || port == 0) start()
         val encodedUrl = Uri.encode(streamUrl)
@@ -78,89 +99,123 @@ class LocalHlsProxyServer @Inject constructor(
         if (encodedReferer.isNotBlank()) proxyUrl += "&referer=$encodedReferer"
         if (encodedOrigin.isNotBlank()) proxyUrl += "&origin=$encodedOrigin"
         if (encodedUa.isNotBlank()) proxyUrl += "&ua=$encodedUa"
+        if (autoReferer) proxyUrl += "&autoRef=1"
         return proxyUrl
     }
 
     private fun handleConnection(socket: Socket) {
         try {
-            socket.soTimeout = 15000
-            val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
-            val requestLine = reader.readLine() ?: run { socket.close(); return }
-            val parts = requestLine.split(" ")
-            if (parts.size < 2 || parts[0] != "GET") {
-                socket.close()
-                return
-            }
-
-            val rawUri = parts[1]
-            val uri = Uri.parse("http://127.0.0.1$rawUri")
-            val targetUrl = uri.getQueryParameter("url") ?: run {
-                sendNotFound(socket)
-                return
-            }
-
-            val referer = uri.getQueryParameter("referer") ?: ""
-            val origin = uri.getQueryParameter("origin") ?: ""
-            val userAgent = uri.getQueryParameter("ua")?.ifBlank { DEFAULT_UA } ?: DEFAULT_UA
-
-            val reqBuilder = Request.Builder()
-                .url(targetUrl)
-                .header("User-Agent", userAgent)
-                .header("Accept", "*/*")
-                .header("Connection", "keep-alive")
-
-            if (referer.isNotBlank()) {
-                reqBuilder.header("Referer", referer)
-            }
-            if (origin.isNotBlank()) {
-                reqBuilder.header("Origin", origin)
-            }
-
-            val response = client.newCall(reqBuilder.build()).execute()
-            val output = socket.getOutputStream()
-            val writer = PrintWriter(output)
-
-            val contentType = response.header("Content-Type") ?: ""
-            val isM3u8 = targetUrl.contains(".m3u8", ignoreCase = true) ||
-                    contentType.contains("mpegurl", ignoreCase = true)
-
-            if (response.isSuccessful) {
-                if (isM3u8) {
-                    val bodyString = response.body?.string() ?: ""
-                    val rewritten = rewriteM3u8(bodyString, targetUrl, referer, origin, userAgent)
-                    val bodyBytes = rewritten.toByteArray(Charsets.UTF_8)
-
-                    writer.print("HTTP/1.1 200 OK\r\n")
-                    writer.print("Content-Type: application/vnd.apple.mpegurl\r\n")
-                    writer.print("Content-Length: ${bodyBytes.size}\r\n")
-                    writer.print("Access-Control-Allow-Origin: *\r\n")
-                    writer.print("Connection: close\r\n\r\n")
-                    writer.flush()
-                    output.write(bodyBytes)
-                    output.flush()
-                } else {
-                    writer.print("HTTP/1.1 ${response.code} ${response.message}\r\n")
-                    response.headers.forEach { pair ->
-                        val name = pair.first
-                        if (!name.equals("Transfer-Encoding", ignoreCase = true)) {
-                            writer.print("$name: ${pair.second}\r\n")
-                        }
-                    }
-                    writer.print("Access-Control-Allow-Origin: *\r\n\r\n")
-                    writer.flush()
-                    response.body?.byteStream()?.use { input ->
-                        input.copyTo(output)
-                    }
-                    output.flush()
+            socket.use { s ->
+                s.soTimeout = 15000
+                val reader = BufferedReader(InputStreamReader(s.getInputStream()))
+                val requestLine = reader.readLine() ?: return
+                val parts = requestLine.split(" ")
+                if (parts.size < 2 || parts[0] != "GET") {
+                    return
                 }
-            } else {
-                writer.print("HTTP/1.1 ${response.code} ${response.message}\r\n\r\n")
-                writer.flush()
+
+                // Leer cabeceras del cliente y reenviar Range si ExoPlayer lo solicita
+                var rangeHeader: String? = null
+                var headerLine = reader.readLine()
+                while (!headerLine.isNullOrEmpty()) {
+                    if (headerLine.startsWith("Range:", ignoreCase = true)) {
+                        rangeHeader = headerLine.substringAfter(":").trim()
+                    }
+                    headerLine = reader.readLine()
+                }
+
+                val rawUri = parts[1]
+                val uri = Uri.parse("http://127.0.0.1$rawUri")
+                val targetUrl = uri.getQueryParameter("url") ?: run {
+                    sendNotFound(s)
+                    return
+                }
+
+                val explicitReferer = uri.getQueryParameter("referer") ?: ""
+                val explicitOrigin = uri.getQueryParameter("origin") ?: ""
+                val autoReferer = uri.getQueryParameter("autoRef") == "1"
+                val userAgent = uri.getQueryParameter("ua")?.ifBlank { DEFAULT_UA } ?: DEFAULT_UA
+
+                val effectiveReferer = explicitReferer.ifBlank {
+                    if (autoReferer) deriveReferer(targetUrl) else ""
+                }
+                val effectiveOrigin = explicitOrigin.ifBlank {
+                    if (effectiveReferer.isNotBlank()) deriveOrigin(effectiveReferer) else ""
+                }
+
+                val reqBuilder = Request.Builder()
+                    .url(targetUrl)
+                    .header("User-Agent", userAgent)
+                    .header("Accept", "*/*")
+
+                if (!rangeHeader.isNullOrBlank()) {
+                    reqBuilder.header("Range", rangeHeader)
+                }
+                if (effectiveReferer.isNotBlank()) {
+                    reqBuilder.header("Referer", effectiveReferer)
+                }
+                if (effectiveOrigin.isNotBlank()) {
+                    reqBuilder.header("Origin", effectiveOrigin)
+                }
+
+                // Garantiza el cierre de ResponseBody incluso ante Broken Pipe al cambiar de canal
+                client.newCall(reqBuilder.build()).execute().use { response ->
+                    val output = s.getOutputStream()
+                    val writer = PrintWriter(output)
+
+                    val finalUrl = response.request.url.toString()
+                    val contentType = response.header("Content-Type") ?: ""
+                    val isM3u8 = finalUrl.contains(".m3u8", ignoreCase = true) ||
+                            targetUrl.contains(".m3u8", ignoreCase = true) ||
+                            contentType.contains("mpegurl", ignoreCase = true)
+
+                    if (response.isSuccessful) {
+                        if (isM3u8) {
+                            val bodyString = response.body?.string() ?: ""
+                            val rewritten = rewriteM3u8(
+                                content = bodyString,
+                                manifestUrl = finalUrl,
+                                referer = explicitReferer,
+                                origin = explicitOrigin,
+                                ua = userAgent,
+                                autoReferer = autoReferer
+                            )
+                            val bodyBytes = rewritten.toByteArray(Charsets.UTF_8)
+
+                            writer.print("HTTP/1.1 200 OK\r\n")
+                            writer.print("Content-Type: application/vnd.apple.mpegurl\r\n")
+                            writer.print("Content-Length: ${bodyBytes.size}\r\n")
+                            writer.print("Access-Control-Allow-Origin: *\r\n")
+                            writer.print("Connection: close\r\n\r\n")
+                            writer.flush()
+                            output.write(bodyBytes)
+                            output.flush()
+                        } else {
+                            writer.print("HTTP/1.1 ${response.code} ${response.message}\r\n")
+                            response.headers.forEach { pair ->
+                                val name = pair.first
+                                if (!name.equals("Transfer-Encoding", ignoreCase = true) &&
+                                    !name.equals("Connection", ignoreCase = true)
+                                ) {
+                                    writer.print("$name: ${pair.second}\r\n")
+                                }
+                            }
+                            writer.print("Access-Control-Allow-Origin: *\r\n")
+                            writer.print("Connection: close\r\n\r\n")
+                            writer.flush()
+                            response.body?.byteStream()?.use { input ->
+                                input.copyTo(output, bufferSize = STREAM_BUFFER_SIZE)
+                            }
+                            output.flush()
+                        }
+                    } else {
+                        writer.print("HTTP/1.1 ${response.code} ${response.message}\r\nConnection: close\r\n\r\n")
+                        writer.flush()
+                    }
+                }
             }
-            response.close()
-            socket.close()
-        } catch (e: Exception) {
-            try { socket.close() } catch (_: Exception) {}
+        } catch (_: Exception) {
+            // Socket y ResponseBody ya quedan cerrados por los bloques use {}
         }
     }
 
@@ -169,7 +224,8 @@ class LocalHlsProxyServer @Inject constructor(
         manifestUrl: String,
         referer: String,
         origin: String,
-        ua: String
+        ua: String,
+        autoReferer: Boolean
     ): String {
         val baseUri = Uri.parse(manifestUrl)
         val sb = StringBuilder(content.length + 512)
@@ -181,22 +237,27 @@ class LocalHlsProxyServer @Inject constructor(
                 return@forEach
             }
             if (trimmed.startsWith("#")) {
-                if (trimmed.startsWith("#EXT-X-KEY:") && trimmed.contains("URI=\"")) {
-                    val keyUriRegex = "URI=\"([^\"]+)\"".toRegex()
-                    val match = keyUriRegex.find(trimmed)
-                    if (match != null) {
-                        val keyUri = match.groupValues[1]
-                        val resolvedKeyUri = resolveUrl(baseUri, keyUri)
-                        val proxyKeyUri = buildProxyUrl(resolvedKeyUri, referer, origin, ua)
-                        val rewrittenKeyTag = trimmed.replace(keyUri, proxyKeyUri)
-                        sb.append(rewrittenKeyTag).append("\n")
-                        return@forEach
+                val hasRewriteableUri = (
+                    trimmed.startsWith("#EXT-X-KEY:") ||
+                    trimmed.startsWith("#EXT-X-MAP:") ||
+                    trimmed.startsWith("#EXT-X-MEDIA:") ||
+                    trimmed.startsWith("#EXT-X-I-FRAME-STREAM-INF:")
+                ) && trimmed.contains("URI=\"")
+
+                if (hasRewriteableUri) {
+                    val rewrittenTag = TAG_URI_REGEX.replace(trimmed) { match ->
+                        val rawTagUri = match.groupValues[1]
+                        val resolvedTagUri = resolveUrl(baseUri, rawTagUri)
+                        val proxyTagUri = buildProxyUrl(resolvedTagUri, referer, origin, ua, autoReferer)
+                        "URI=\"$proxyTagUri\""
                     }
+                    sb.append(rewrittenTag).append("\n")
+                    return@forEach
                 }
                 sb.append(trimmed).append("\n")
             } else {
                 val resolvedUrl = resolveUrl(baseUri, trimmed)
-                val proxySegmentUrl = buildProxyUrl(resolvedUrl, referer, origin, ua)
+                val proxySegmentUrl = buildProxyUrl(resolvedUrl, referer, origin, ua, autoReferer)
                 sb.append(proxySegmentUrl).append("\n")
             }
         }
@@ -255,4 +316,3 @@ class LocalHlsProxyServer @Inject constructor(
         } catch (_: Exception) {}
     }
 }
-

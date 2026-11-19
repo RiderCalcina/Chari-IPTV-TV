@@ -8,10 +8,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -26,6 +26,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import coil.size.Precision
 import com.example.chariiptv.R
 import com.example.chariiptv.domain.Channel
 import com.example.chariiptv.theme.*
@@ -39,6 +40,20 @@ fun ChannelCardView(
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val logoRequest = remember(channel.logo, context) {
+        if (channel.logo.isNotBlank()) {
+            ImageRequest.Builder(context)
+                .data(channel.logo)
+                .size(220, 150)
+                .precision(Precision.INEXACT)
+                .crossfade(false)
+                .error(R.drawable.default_tv)
+                .fallback(R.drawable.default_tv)
+                .build()
+        } else null
+    }
+
     Surface(
         onClick = onClick,
         onLongClick = onLongClick,
@@ -55,7 +70,6 @@ fun ChannelCardView(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(16f / 11f)
-            .shadow(elevation = 8.dp, shape = RoundedCornerShape(12.dp), spotColor = Color(0x66000000))
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             // Fondo con degradado sutil hacia abajo para destacar los textos
@@ -123,14 +137,9 @@ fun ChannelCardView(
                         .padding(vertical = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (channel.logo.isNotBlank()) {
+                    if (logoRequest != null) {
                         AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(channel.logo)
-                                .crossfade(true)
-                                .error(R.drawable.default_tv)
-                                .fallback(R.drawable.default_tv)
-                                .build(),
+                            model = logoRequest,
                             contentDescription = channel.name,
                             modifier = Modifier
                                 .fillMaxHeight(0.85f)
