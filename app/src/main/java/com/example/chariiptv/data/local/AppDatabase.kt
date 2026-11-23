@@ -5,7 +5,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [FavoriteChannel::class, CachedChannel::class], version = 12, exportSchema = false)
+@Database(entities = [FavoriteChannel::class, CachedChannel::class], version = 13, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun favoriteDao(): FavoriteDao
     abstract fun cachedChannelDao(): CachedChannelDao
@@ -20,6 +20,13 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE favorites ADD COLUMN userAgent TEXT NOT NULL DEFAULT ''")
                 db.execSQL("ALTER TABLE favorites ADD COLUMN referer TEXT NOT NULL DEFAULT ''")
                 db.execSQL("ALTER TABLE favorites ADD COLUMN alternateSourcesJson TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Purga completa de caché de canales en vivo y residuales (M3UCL / mametchikitty)
+                db.execSQL("DELETE FROM cached_channels")
             }
         }
     }

@@ -18,7 +18,7 @@ import javax.inject.Singleton
 
 @Singleton
 class LocalHlsProxyServer @Inject constructor(
-    private val client: OkHttpClient
+    @com.example.chariiptv.di.MediaClient private val client: OkHttpClient
 ) {
     companion object {
         private const val TAG = "LocalHlsProxyServer"
@@ -26,6 +26,7 @@ class LocalHlsProxyServer @Inject constructor(
         private val TAG_URI_REGEX = Regex("URI=\"([^\"]+)\"")
         private const val DEFAULT_UA =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+        private val PRIVATE_IP_REGEX = Regex("^(?:127\\.|10\\.|192\\.168\\.|169\\.254\\.|172\\.(?:1[6-9]|2[0-9]|3[01])\\.)")
     }
 
     private var serverSocket: ServerSocket? = null
@@ -128,6 +129,12 @@ class LocalHlsProxyServer @Inject constructor(
                 val uri = Uri.parse("http://127.0.0.1$rawUri")
                 val targetUrl = uri.getQueryParameter("url") ?: run {
                     sendNotFound(s)
+                    return
+                }
+
+                if (!isSafeStreamUrl(targetUrl)) {
+                    Log.w(TAG, "Petición bloqueada por regla Anti-SSRF: $targetUrl")
+                    sendForbidden(s)
                     return
                 }
 
@@ -298,6 +305,29 @@ class LocalHlsProxyServer @Inject constructor(
         } catch (_: Exception) {
             ""
         }
+    }
+
+    private fun isSafeStreamUrl(rawUrl: String): Boolean {
+        return try {
+            val parsed = Uri.parse(rawUrl)
+            val scheme = parsed.scheme?.lowercase()
+            if (scheme != "http" && scheme != "https") return false
+            val host = parsed.host?.lowercase() ?: return false
+            if (host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "0.0.0.0") return false
+            if (host.matches(PRIVATE_IP_REGEX)) return false
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun sendForbidden(socket: Socket) {
+        try {
+            val writer = PrintWriter(socket.getOutputStream())
+            writer.print("HTTP/1.1 403 Forbidden\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nAcceso bloqueado por regla Anti-SSRF")
+            writer.flush()
+            socket.close()
+        } catch (_: Exception) {}
     }
 
     private fun sendNotFound(socket: Socket) {

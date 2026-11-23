@@ -29,6 +29,12 @@
 # Room Entities y DAOs
 -keep class com.example.chariiptv.data.local.** { *; }
 
+# Modelos de Dominio y Estado
+-keep class com.example.chariiptv.domain.** { *; }
+
+# Inyección Dagger / Hilt y Calificadores
+-keep class com.example.chariiptv.di.** { *; }
+
 # Android TV Provider / BroadcastReceiver
 -keep class com.example.chariiptv.tvrecommendations.** { *; }
 

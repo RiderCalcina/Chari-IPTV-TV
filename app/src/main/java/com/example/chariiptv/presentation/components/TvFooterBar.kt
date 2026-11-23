@@ -19,6 +19,7 @@ import com.example.chariiptv.theme.*
 @Composable
 fun TvFooterBar(
     channelCountText: String,
+    showFavoriteHint: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -70,29 +71,31 @@ fun TvFooterBar(
                 )
             }
 
-            // Tecla Mantener OK
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(TvSurfaceContainerHigh)
-                        .padding(horizontal = 5.dp, vertical = 1.dp)
+            // Tecla Mantener OK (Oculto en catálogo Ghibli)
+            if (showFavoriteHint) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(TvSurfaceContainerHigh)
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = "MANTENER OK",
+                            color = TvSecondary,
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     Text(
-                        text = "MANTENER OK",
-                        color = TvSecondary,
-                        fontSize = 9.5.sp,
-                        fontWeight = FontWeight.Bold
+                        text = "Favorito",
+                        color = TvOnSurfaceVariant,
+                        fontSize = 11.5.sp
                     )
                 }
-                Text(
-                    text = "Favorito",
-                    color = TvOnSurfaceVariant,
-                    fontSize = 11.5.sp
-                )
             }
 
             // Tecla Atrás
@@ -146,7 +149,7 @@ fun TvFooterBar(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = "Chari-IPTV TV",
+                    text = "Chari-IPTV",
                     color = TvOnSurfaceVariant,
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Medium

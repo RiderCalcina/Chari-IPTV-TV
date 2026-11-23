@@ -13,7 +13,8 @@ object Constants {
         CategoryItem("movies", "Películas", "🎬"),
         CategoryItem("series", "Series", "📺"),
         CategoryItem("animation", "Infantil", "👶"),
-        CategoryItem("music", "Música", "🎵")
+        CategoryItem("music", "Música", "🎵"),
+        CategoryItem("ghibli", "Studio Ghibli", "")
     )
 
     val SPANISH_COUNTRIES = setOf(
@@ -117,6 +118,8 @@ object Constants {
         // Excluir canales explícitamente geobloqueados o redes de intranet privadas / servidores caídos
         if (lowerUrl.contains("bantel-cdn1.iptvperu.tv")) return true
         if (lowerUrl.contains("barinaslive1.boldmss.com")) return true
+        if (lowerUrl.contains("38.187.7.252")) return true // Servidor Astra deshabilitado
+        if (lowerUrl.contains("187.102.208.209")) return true // Servidor Astra HTTP 403 permanente
 
         for (token in GEO_BLOCKED_TOKENS) {
             if (lowerName.contains(token)) return true

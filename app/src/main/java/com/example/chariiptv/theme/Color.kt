@@ -16,6 +16,7 @@ val TvSurfaceFocused = Color(0xFF334155)
 val TvPrimary = Color(0xFF2563EB)
 val TvPrimaryFocused = Color(0xFF3B82F6)
 val TvPrimaryLight = Color(0xFFB4C5FF)
+val TvPrimaryContainer = Color(0xFF1E3A8A)
 
 // Secondary & Accents (Gold / Amber for VIP, Support, Important, Stars)
 val TvSecondary = Color(0xFFF59E0B)

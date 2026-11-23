@@ -11,6 +11,7 @@ import com.example.chariiptv.util.Constants
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -218,5 +219,11 @@ class TvViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun prewarmChannel(channel: Channel) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.prewarmStream(channel.url)
+        }
     }
 }

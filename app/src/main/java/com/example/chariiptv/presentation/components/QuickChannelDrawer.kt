@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -47,6 +48,7 @@ fun QuickChannelDrawer(
     favorites: Set<String>,
     onChannelSelected: (Channel) -> Unit,
     onClose: () -> Unit,
+    onUserActivity: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currentIndex = remember(channels, currentChannelUrl) {
@@ -58,6 +60,12 @@ fun QuickChannelDrawer(
 
     val targetFocusRequester = remember { FocusRequester() }
     val firstItemFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (listState.isScrollInProgress) {
+            onUserActivity()
+        }
+    }
 
     LaunchedEffect(channels, currentChannelUrl) {
         if (currentIndex > 0) {
@@ -187,11 +195,7 @@ fun QuickChannelDrawer(
 
                     Surface(
                         onClick = {
-                            if (isPlaying) {
-                                onClose()
-                            } else {
-                                onChannelSelected(channel)
-                            }
+                            onChannelSelected(channel)
                         },
                         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(10.dp)),
                         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
@@ -211,6 +215,7 @@ fun QuickChannelDrawer(
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
+                            .onFocusChanged { if (it.isFocused) onUserActivity() }
                             .then(focusMod)
                     ) {
                         Row(

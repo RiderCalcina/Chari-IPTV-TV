@@ -10,7 +10,7 @@ android {
     namespace = "com.example.chariiptv"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.example.chariiptv"
+        applicationId = "com.qwertyaserty.chariiptv"
         minSdk = 24
         targetSdk = 36
         versionCode = 3
@@ -57,6 +57,16 @@ android {
       resources {
         excludes += "/META-INF/{AL2.0,LGPL2.1}"
       }
+    }
+
+    applicationVariants.all {
+        val variant = this
+        outputs.all {
+            val output = this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            if (variant.buildType.name == "release") {
+                output?.outputFileName = "Chari-IPTV_1.2.apk"
+            }
+        }
     }
 }
 

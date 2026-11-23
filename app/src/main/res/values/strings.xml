@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Chari-IPTV TV</string>
+    <string name="app_name">Chari-IPTV</string>
     <string name="searching_channels">Buscando canales de %1$s...</string>
     <string name="active_channels">%1$d canales activos en %2$s</string>
     <string name="scan_channels_title">Escanear Canales</string>

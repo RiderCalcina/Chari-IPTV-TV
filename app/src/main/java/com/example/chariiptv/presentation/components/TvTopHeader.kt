@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -100,54 +101,22 @@ fun TvTopHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Logotipo: ChariIPTV + Badge En Vivo
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Chari",
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = (-0.5).sp
-                    )
-                    Text(
-                        text = "IPTV",
-                        color = TvPrimaryLight,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = (-0.5).sp
-                    )
-                }
-
-                // Badge En Vivo
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(TvSurfaceContainerHigh)
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(TvLiveRed)
-                        )
-                        Text(
-                            text = "EN VIVO",
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.8.sp
-                        )
-                    }
-                }
+            // Logotipo oficial: Chari-IPTV
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Chari-",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-0.5).sp
+                )
+                Text(
+                    text = "IPTV",
+                    color = TvPrimaryLight,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-0.5).sp
+                )
             }
 
             // Lado Derecho: Reloj aislado (no recompone las pestañas cada 10 segundos)
@@ -167,6 +136,7 @@ fun TvTopHeader(
             items(mainNavItems, key = { it.id }) { item ->
                 val isSelected = item.id == selectedFilterId
                 val isSpecial = item.isSpecial
+                var isFocused by remember { mutableStateOf(false) }
 
                 Surface(
                     onClick = {
@@ -182,7 +152,7 @@ fun TvTopHeader(
                         border = Border(
                             BorderStroke(
                                 1.dp,
-                                if (isSpecial) Color(0x66F59E0B)
+                                if (isSpecial) Color(0x99F59E0B)
                                 else if (isSelected) Color(0x662563EB)
                                 else Color(0x22FFFFFF)
                             )
@@ -190,12 +160,12 @@ fun TvTopHeader(
                         focusedBorder = Border(
                             BorderStroke(
                                 2.5.dp,
-                                if (isSpecial) TvSecondary else Color.White
+                                Color.White
                             )
                         )
                     ),
                     colors = ClickableSurfaceDefaults.colors(
-                        containerColor = if (isSpecial) TvSecondaryContainer.copy(alpha = 0.85f)
+                        containerColor = if (isSpecial) Color(0x33F59E0B)
                         else if (isSelected) TvPrimary
                         else TvSurfaceContainerHigh,
                         focusedContainerColor = if (isSpecial) TvSecondary
@@ -204,6 +174,7 @@ fun TvTopHeader(
                     ),
                     modifier = Modifier
                         .padding(vertical = 2.dp)
+                        .onFocusChanged { isFocused = it.isFocused }
                         .then(if (isSelected) Modifier.focusRequester(selectedFilterFocusRequester) else Modifier)
                 ) {
                     Row(
@@ -220,8 +191,13 @@ fun TvTopHeader(
                         }
                         Text(
                             text = item.label,
-                            color = if (isSpecial) Color(0xFF3B1E00) else Color.White,
-                            fontWeight = if (isSelected || isSpecial) FontWeight.Bold else FontWeight.Medium,
+                            color = when {
+                                isSpecial && isFocused -> Color(0xFF261300)
+                                isSpecial -> TvSecondaryLight
+                                isSelected -> Color.White
+                                else -> Color.White
+                            },
+                            fontWeight = if (isSelected || isSpecial || isFocused) FontWeight.Bold else FontWeight.Medium,
                             fontSize = 12.5.sp
                         )
                     }

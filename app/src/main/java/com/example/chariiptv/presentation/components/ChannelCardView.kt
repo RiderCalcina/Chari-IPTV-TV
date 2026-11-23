@@ -12,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -38,6 +39,7 @@ fun ChannelCardView(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onToggleFavorite: () -> Unit,
+    onFocused: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -70,6 +72,7 @@ fun ChannelCardView(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(16f / 11f)
+            .onFocusChanged { if (it.isFocused) onFocused?.invoke() }
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             // Fondo con degradado sutil hacia abajo para destacar los textos
@@ -80,17 +83,25 @@ fun ChannelCardView(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Fila Superior de la Tarjeta: Badge EN VIVO + País (si existe)
+                // Fila Superior de la Tarjeta: Badge EN VIVO / CINE + Favorito
+                val isVod = remember(channel.url, channel.category) {
+                    channel.url.endsWith(".mp4", ignoreCase = true) ||
+                    channel.url.contains(".mp4?", ignoreCase = true) ||
+                    channel.url.endsWith(".mkv", ignoreCase = true) ||
+                    channel.category.equals("ani", ignoreCase = true) ||
+                    channel.category.equals("ghibli", ignoreCase = true)
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Badge En Vivo
+                    // Badge En Vivo / CINE VOD
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
-                            .background(TvLiveRedContainer)
+                            .background(if (isVod) TvPrimaryContainer.copy(alpha = 0.4f) else TvLiveRedContainer)
                             .padding(horizontal = 5.dp, vertical = 2.dp)
                     ) {
                         Row(
@@ -101,10 +112,10 @@ fun ChannelCardView(
                                 modifier = Modifier
                                     .size(5.dp)
                                     .clip(CircleShape)
-                                    .background(TvLiveRed)
+                                    .background(if (isVod) TvPrimary else TvLiveRed)
                             )
                             Text(
-                                text = "EN VIVO",
+                                text = if (isVod) "CINE" else "EN VIVO",
                                 color = Color.White,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
@@ -163,17 +174,19 @@ fun ChannelCardView(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(6.dp))
-                        .background(TvSurfaceContainerLowest.copy(alpha = 0.75f))
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                        .background(TvSurfaceContainerLowest.copy(alpha = 0.85f))
+                        .padding(horizontal = 6.dp, vertical = 3.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = channel.name,
                         color = Color.White,
-                        fontSize = 12.sp,
+                        fontSize = if (channel.name.length > 25) 10.5.sp else 12.sp,
+                        lineHeight = 13.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
-                        maxLines = 1
+                        maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
             }

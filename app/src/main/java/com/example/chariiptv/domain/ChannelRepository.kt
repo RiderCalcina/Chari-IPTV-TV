@@ -4,6 +4,7 @@ import com.example.chariiptv.data.local.CachedChannel
 import com.example.chariiptv.data.local.CachedChannelDao
 import com.example.chariiptv.data.local.FavoriteChannel
 import com.example.chariiptv.data.local.FavoriteDao
+import com.example.chariiptv.domain.provider.AniVodProvider
 import com.example.chariiptv.domain.provider.IptvOrgProvider
 import com.example.chariiptv.domain.provider.PlutoTvProvider
 import com.example.chariiptv.domain.provider.TdtChannelsProvider
@@ -26,6 +27,7 @@ class ChannelRepository @Inject constructor(
     private val iptvOrgProvider: IptvOrgProvider,
     private val tdtChannelsProvider: TdtChannelsProvider,
     private val plutoTvProvider: PlutoTvProvider,
+    private val aniVodProvider: AniVodProvider,
     private val favoriteDao: FavoriteDao,
     private val cachedChannelDao: CachedChannelDao,
     private val okHttpClient: OkHttpClient
@@ -90,6 +92,7 @@ class ChannelRepository @Inject constructor(
             tdtChannelsProvider.clearCache()
             plutoTvProvider.clearCache()
             iptvOrgProvider.clearCache()
+            aniVodProvider.clearCache()
         } else {
             channelsCache[normalizedCode]?.let { entry ->
                 if ((now - entry.updatedAt) < CACHE_TTL_MS) {
@@ -101,7 +104,12 @@ class ChannelRepository @Inject constructor(
             if (cachedDbChannels.isNotEmpty()) {
                 val dbChannels = cachedDbChannels
                     .map { it.toDomainChannel() }
-                    .filter { !Constants.isForeignOrBlocked(it.name, it.url) }
+                    .filter { ch ->
+                        !Constants.isForeignOrBlocked(ch.name, ch.url) &&
+                        !ch.url.contains("PlaylistM3UCL", ignoreCase = true) &&
+                        !ch.url.contains("telechancho", ignoreCase = true) &&
+                        !ch.url.contains("archive.org", ignoreCase = true)
+                    }
                 val newestUpdate = cachedDbChannels.maxOfOrNull { it.updatedAt } ?: 0L
                 if (newestUpdate > 0L && (now - newestUpdate) < CACHE_TTL_MS) {
                     channelsCache[normalizedCode] = CachedEntry(dbChannels, newestUpdate)
@@ -112,6 +120,7 @@ class ChannelRepository @Inject constructor(
                 tdtChannelsProvider.clearCache()
                 plutoTvProvider.clearCache()
                 iptvOrgProvider.clearCache()
+                aniVodProvider.clearCache()
             }
         }
 
@@ -126,7 +135,8 @@ class ChannelRepository @Inject constructor(
             resultChannels.addAll(plutoDeferred.await())
             resultChannels.addAll(orgDeferred.await())
         } else {
-            resultChannels.addAll(iptvOrgProvider.fetchChannelsByCountry(normalizedCode))
+            val orgDeferred = async { iptvOrgProvider.fetchChannelsByCountry(normalizedCode) }
+            resultChannels.addAll(orgDeferred.await())
         }
 
         val filteredSequence = resultChannels
@@ -134,7 +144,10 @@ class ChannelRepository @Inject constructor(
             .filter { ch ->
                 ch.url.isNotBlank() &&
                 !Constants.isForeignOrBlocked(ch.name, ch.url) &&
-                !Constants.isPanRegionalThematicChannel(ch.name, ch.url)
+                !Constants.isPanRegionalThematicChannel(ch.name, ch.url) &&
+                !ch.url.contains("PlaylistM3UCL", ignoreCase = true) &&
+                !ch.url.contains("telechancho", ignoreCase = true) &&
+                !ch.url.contains("archive.org", ignoreCase = true)
             }
 
         val mergedList = mergeChannelsWithMirrors(filteredSequence)
@@ -155,7 +168,12 @@ class ChannelRepository @Inject constructor(
         if (fallbackDb.isNotEmpty()) {
             val fallback = fallbackDb
                 .map { it.toDomainChannel() }
-                .filter { !Constants.isForeignOrBlocked(it.name, it.url) }
+                .filter { ch ->
+                    !Constants.isForeignOrBlocked(ch.name, ch.url) &&
+                    !ch.url.contains("PlaylistM3UCL", ignoreCase = true) &&
+                    !ch.url.contains("telechancho", ignoreCase = true) &&
+                    !ch.url.contains("archive.org", ignoreCase = true)
+                }
             channelsCache[normalizedCode] = CachedEntry(fallback, now)
             return@withContext fallback
         }
@@ -163,16 +181,81 @@ class ChannelRepository @Inject constructor(
         return@withContext mergedList
     }
 
+    suspend fun getGhibliChannels(forceRefresh: Boolean = false): List<Channel> = withContext(Dispatchers.IO) {
+        val cacheKey = "ghibli"
+        val now = System.currentTimeMillis()
+        var staleFallback: List<Channel> = emptyList()
+
+        if (forceRefresh) {
+            channelsCache.remove(cacheKey)
+            aniVodProvider.clearCache()
+        } else {
+            channelsCache[cacheKey]?.let { entry ->
+                val isComplete = entry.channels.size >= 25
+                if (isComplete && (now - entry.updatedAt) < CACHE_TTL_MS) {
+                    return@withContext entry.channels
+                }
+                staleFallback = entry.channels
+                channelsCache.remove(cacheKey)
+                aniVodProvider.clearCache()
+            }
+            val cachedDbChannels = cachedChannelDao.getChannelsByCountry(cacheKey)
+            if (cachedDbChannels.isNotEmpty()) {
+                val isComplete = cachedDbChannels.size >= 25
+                if (isComplete) {
+                    val dbChannels = cachedDbChannels
+                        .map { it.toDomainChannel() }
+                        .sortedBy { GhibliData.getChronologicalIndex(it.name) }
+                    val newestUpdate = cachedDbChannels.maxOfOrNull { it.updatedAt } ?: 0L
+                    if (newestUpdate > 0L && (now - newestUpdate) < CACHE_TTL_MS) {
+                        channelsCache[cacheKey] = CachedEntry(dbChannels, newestUpdate)
+                        return@withContext dbChannels
+                    }
+                    staleFallback = dbChannels
+                }
+                aniVodProvider.clearCache()
+            }
+        }
+
+        val ghibliChannels = aniVodProvider.fetchGhibliChannels()
+        if (ghibliChannels.isNotEmpty()) {
+            val savedAt = System.currentTimeMillis()
+            val entitiesToSave = ghibliChannels.map { it.toCachedEntity(cacheKey, savedAt) }
+            cachedChannelDao.replaceChannelsForCountry(cacheKey, entitiesToSave)
+            channelsCache[cacheKey] = CachedEntry(ghibliChannels, savedAt)
+            return@withContext ghibliChannels
+        }
+
+        if (staleFallback.isNotEmpty()) {
+            return@withContext staleFallback
+        }
+        val fallbackDb = cachedChannelDao.getChannelsByCountry(cacheKey)
+        if (fallbackDb.isNotEmpty()) {
+            val fallback = fallbackDb
+                .map { it.toDomainChannel() }
+                .sortedBy { GhibliData.getChronologicalIndex(it.name) }
+            channelsCache[cacheKey] = CachedEntry(fallback, now)
+            return@withContext fallback
+        }
+
+        return@withContext emptyList()
+    }
+
     suspend fun getChannelsByCategory(categoryKey: String, forceRefresh: Boolean = false): List<Channel> = withContext(Dispatchers.IO) {
         val normalizedKey = categoryKey.lowercase()
         val now = System.currentTimeMillis()
         var staleFallback: List<Channel> = emptyList()
+
+        if (normalizedKey == "ghibli") {
+            return@withContext getGhibliChannels(forceRefresh)
+        }
 
         if (forceRefresh) {
             channelsCache.remove(normalizedKey)
             tdtChannelsProvider.clearCache()
             plutoTvProvider.clearCache()
             iptvOrgProvider.clearCache()
+            aniVodProvider.clearCache()
         } else {
             channelsCache[normalizedKey]?.let { entry ->
                 if ((now - entry.updatedAt) < CACHE_TTL_MS) {
@@ -194,6 +277,7 @@ class ChannelRepository @Inject constructor(
                 tdtChannelsProvider.clearCache()
                 plutoTvProvider.clearCache()
                 iptvOrgProvider.clearCache()
+                aniVodProvider.clearCache()
             }
         }
 
@@ -497,5 +581,26 @@ class ChannelRepository @Inject constructor(
             } catch (_: Exception) {}
         }
         return@withContext null
+    }
+
+    @Volatile
+    private var lastPrewarmedHost: String? = null
+
+    /**
+     * Pre-calentamiento especulativo de red al enfocar un canal con el control remoto:
+     * Resuelve el DNS anticipadamente mediante la pila DoH para que al presionar OK el socket
+     * arranque de inmediato sin latencia de resolución de dominio.
+     */
+    suspend fun prewarmStream(streamUrl: String) = withContext(Dispatchers.IO) {
+        try {
+            val uri = android.net.Uri.parse(streamUrl)
+            val host = uri.host ?: return@withContext
+            if (host == lastPrewarmedHost) return@withContext
+            lastPrewarmedHost = host
+
+            okHttpClient.dns.lookup(host)
+        } catch (_: Exception) {
+            // Silencioso: optimización anticipatoria
+        }
     }
 }

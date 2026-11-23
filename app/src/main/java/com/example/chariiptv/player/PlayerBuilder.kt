@@ -51,6 +51,9 @@ object PlayerBuilder {
             parameters = buildUponParameters()
                 .setPreferredAudioLanguages("spa", "es", "esp", "castellano")
                 .setSelectUndeterminedTextLanguage(true)
+                .setAllowVideoMixedMimeTypeAdaptiveness(true)
+                .setAllowVideoNonSeamlessAdaptiveness(true)
+                .setExceedRendererCapabilitiesIfNecessary(true)
                 .build()
         }
 

@@ -1,6 +1,6 @@
-# Chari-IPTV TV - Aplicación Nativa para Android TV 📺 (v1.2)
+# Chari-IPTV - Aplicación Nativa para Android TV 📺 (v1.2)
 
-**Chari-IPTV TV** es una aplicación nativa de última generación diseñada específicamente para dispositivos con Android TV (Smart TVs, TV Boxes, Fire TV Sticks, Google TV). Desarrollada con **Jetpack Compose para TV (androidx.tv.material3)** y el sistema de diseño **Obsidian Cinema TV**, brinda una experiencia inmersiva, cinematográfica, fluida y 100% autónoma en la sala de estar.
+**Chari-IPTV** es una aplicación nativa de última generación diseñada específicamente para dispositivos con Android TV (Smart TVs, TV Boxes, Fire TV Sticks, Google TV). Desarrollada con **Jetpack Compose para TV (androidx.tv.material3)** y el sistema de diseño **Obsidian Cinema TV**, brinda una experiencia inmersiva, cinematográfica, fluida y 100% autónoma en la sala de estar.
 
 > 📖 **Nota de Interfaz:** Para una descripción detallada de todos los elementos visuales, comportamiento y flujos de navegación de la aplicación, consulta la [Documentación de Interfaz de Usuario (INTERFAZ_USUARIO.md)](./INTERFAZ_USUARIO.md).
 
@@ -8,6 +8,30 @@
 
 ## 🚀 Novedades de la Versión 1.2
 
+*   **Catálogo Completo y Cronológico `Studio Ghibli` (25 Películas Oficiales):** La sección cinematográfica **`Studio Ghibli`** integra la filmografía oficial completa de 25 películas en riguroso orden cronológico histórico (1984–2023) desde *Nausicaä del Valle del Viento* hasta *El chico y la garza*.
+    *   *Streams Híbridos (BitChute + Respaldo Archive.org):* Incorporación de streams de BitChute como fuente principal y enlaces de Internet Archive como respaldo automático en `alternateSources`.
+    *   *Sistema Inteligente de Reanudación de Reproducción:* Exclusivo para Studio Ghibli (`GhibliPlaybackStore`), si el usuario sale de la película o de la app y regresa más tarde, la aplicación le pregunta mediante un diálogo modal enfocado para TV si desea **Continuar donde lo dejó** (con indicación de tiempo transcurrido) o **Comenzar de nuevo** desde 0:00.
+    *   *Sin Botón Escanear:* Se retiró el botón `[🔄 Escanear]` en este apartado por tratarse de un catálogo cinematográfico completo y curado.
+    *   *Sin Función de Favoritos:* Se suprimieron las estrellas en las tarjetas y la opción de favoritos en esta sección; la barra inferior `TvFooterBar` oculta automáticamente la leyenda `[MANTENER OK] Favorito` al ingresar a Studio Ghibli.
+    *   *FastStart & Watchdog Adaptativo (35s):* Optimización de streaming continuo y conmutación automática de fuentes espejo ante demoras de red.
+*   **Tarjetas Cinematográficas Adaptativas de 2 Columnas con Sinopsis:** Al ingresar a la sección `Studio Ghibli`, la cuadrícula se transforma automáticamente de 4 columnas a **2 columnas** (`GridCells.Fixed(2)`), desplegando tarjetas de cine de gran formato (180dp de altura) con póster vertical en proporción 2:3, insignia `🎬 PELÍCULA`, año de lanzamiento, duración, director, sinopsis argumental completa en español curada localmente (`GhibliData`) y atajo de reproducción D-Pad con audio latino.
+*   **Ventana Modal "Importante" Refinada & Aviso Legal Profundizado:**
+    *   *Cabecera Limpia:* Remoción de títulos repetitivos y emojis distractores; presentación mediante banner directo de agradecimiento y donaciones voluntarias (PayPal y Yape).
+    *   *Aviso Legal y Derechos de Autor:* Profundización integral estipulando la naturaleza de software cliente multimedia sin servidores de retransmisión propios, indexación de repositorios públicos de internet (*iptv-org*, *TDTChannels*), enlaces a archivos de preservación histórica en Internet Archive (*archive.org*) y titularidad de derechos de *Studio Ghibli Inc.* y cadenas de televisión.
+    *   *Cierre Nativo con Control Remoto:* Eliminación del botón gráfico `[Cerrar]`; el diálogo se descarta de forma intuitiva presionando la tecla física **ATRÁS** del mando a distancia.
+*   **Mitigación de Errores HTTP 403 Forbidden & Purga de Servidores Astra:**
+    *   Análisis técnico y filtrado preventivo en `Constants.kt` de servidores restreamers de puerto 8000 caídos o con tokens privados vencidos (`38.187.7.252`, `187.102.208.209`), eliminando la causa raíz de bloqueos recurrentes en transmisiones deportivas de pago cerradas (*DSports*).
+    *   Failover automático hacia micro-proxy loopback con cabeceras `Referer`/`Origin` y conmutación silenciosa a fuentes espejo alternativas.
+*   **Reconexión Automática ante Señales Inestables (Mínimo 3 Intentos):** Ante microcortes de red, pérdidas de paquetes o caídas temporales del servidor emisor, la app ya no interrumpe al usuario ni despliega el diálogo de desconexión de inmediato; ejecuta un ciclo de **al menos 3 reintentos automáticos continuos** antes de declarar la señal como inaccesible, informando en pantalla: *"Reconectando señal (intento X de 3)..."*..
+*   **Purga de Canales Residuales y Migración Room v13:** Implementación de `MIGRATION_12_13` (`DELETE FROM cached_channels`) en `AppDatabase.kt` para eliminar canales residuales o enlaces inactivos de repositorios externos en Perú y demás países, manteniendo al 100% los favoritos del usuario e incorporando filtros estrictos contra dominios VOD en listas de televisión en vivo.
+*   **Arquitectura de Red Dual (Aislamiento Seguro & Media):** Separación estricta de clientes OkHttp mediante calificadores de inyección Dagger Hilt (`@SecureClient` y `@MediaClient`). Las consultas a GitHub M3U, GeoIP y el blog de noticias validan al 100% los certificados SSL/TLS y el hostname del sistema, mientras que el cliente permisivo se aísla exclusivamente a la reproducción de flujos IPTV en ExoPlayer y el proxy local.
+*   **Blindaje Anti-SSRF en el Proxy Local:** `LocalHlsProxyServer` analiza cada URL objetivo rechazando de forma inmediata cualquier intento de conexión hacia subredes locales privadas (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), interfaces de administración del router o direcciones loopback (`127.0.0.1`, `localhost`).
+*   **Pre-calentamiento Especulativo DNS (Zapping Instantáneo):** Al posicionar el foco del control remoto sobre cualquier tarjeta de la cuadrícula, el repositorio realiza la resolución DNS anticipada del servidor emisor a través de la pila DoH. Al presionar OK, el socket ya está caliente, reduciendo el tiempo de arranque de video (TTFF) drásticamente.
+*   **Adaptabilidad Dinámica de Bitrate en Wi-Fi:** `PlayerBuilder` incorpora reglas adaptativas multi-códec (`allowVideoMixedMimeTypeAdaptiveness`, `allowVideoNonSeamlessAdaptiveness`) para permitir descensos de resolución fluidos ante caídas momentáneas del ancho de banda en conexiones inalámbricas inestables.
+*   **Blindaje de Copias de Seguridad:** Desactivación de `allowBackup` en el manifiesto para impedir extracciones de datos no autorizadas por depuración ADB.
+*   **Identidad de Marca Oficial (`Chari-IPTV`):** Homologación del nombre oficial `Chari-IPTV` en toda la interfaz, footer dinámico (`Chari-IPTV v1.2`), metadatos del sistema y Android TV Launcher. Remoción del badge `EN VIVO` en la barra superior para un diseño despejado y sofisticado.
+*   **Enfoque de Alto Contraste en Botón "Importante":** Adopción del marco de foco blanco perimétrico de 2.5dp (`Color.White`), aumento de escala a 1.08f y fondo ámbar sólido vibrante (`#F59E0B`) con tipografía de alto contraste cuando el control remoto se sitúa sobre él, garantizando que se note con la misma claridad que el resto de botones interactivos.
+*   **Auto-Ocultado Inteligente del Cajón Lateral (4 Segundos):** El menú lateral de zapping (*Quick Channel Drawer*) se oculta automáticamente tras 4 segundos de inactividad, evitando obstruir la reproducción si el usuario no realiza ninguna acción. Cualquier pulsación del D-Pad o desplazamiento en la lista reinicia el temporizador.
 *   **Reproducción Direct-First con Failover Inteligente a Proxy:** ExoPlayer intenta reproducir de forma directa y nativa por defecto. Solo si el servidor emisor devuelve un error HTTP 403 Forbidden o HTTP 451 (geobloqueo), conmuta dinámicamente al micro-proxy loopback local (`127.0.0.1:8899`) inyectando cabeceras de emulación (`Referer`, `Origin`, `User-Agent`). Esto reduce la latencia de arranque al mínimo absoluto en más del 85% de las señales.
 *   **Soporte de Fuentes Espejo (Multi-Mirror Failover):** Agrupación inteligente de streams duplicados o alternativos para un mismo canal (`Fuente X/Y`). Si un stream primario sufre caídas de señal, el sistema permite conmutar o realizar failover automático hacia el espejo funcional.
 *   **Aislamiento de Ciclo de Vida en ExoPlayer:** Instanciación limpia y dedicada por URL (`remember(activeStreamUrl, retryCount)`). Previene por completo la contaminación de decodificadores, formatos de audio y búferes al alternar entre emisiones con diferentes codecs o resoluciones.
@@ -28,7 +52,7 @@
 
 *   **Zapping Lateral en Reproducción (*Quick Channel Drawer*):** Al estar reproduciendo cualquier canal a pantalla completa, basta con presionar **D-Pad Izquierda (◀)** en el control remoto para desplegar una lista lateral semitransparente con todos los canales disponibles del mismo apartado (categoría o país activo). Permite cambiar de canal de inmediato (*in-place*) sin salir del reproductor ni cortar la inmersión del usuario.
 *   **Intercepción Nativa de Teclas (`dispatchKeyEvent`):** Arquitectura de captura de eventos a nivel de ventana en `MainActivity` que garantiza respuesta inmediata al 100% de las pulsaciones del control remoto, evitando que el `SurfaceView` de ExoPlayer bloquee o absorba las teclas direccionales.
-*   **Identificador de Versión Fijo en Pantalla:** La versión oficial instalada se muestra de forma permanente y nítida en la esquina inferior derecha del menú principal y del reproductor (`Chari-IPTV TV v1.2`).
+*   **Identificador de Versión Fijo en Pantalla:** La versión oficial instalada se muestra de forma permanente y nítida en la esquina inferior derecha del menú principal y del reproductor (`Chari-IPTV v1.2`).
 *   **Estética "Obsidian Cinema TV":** Fondos OLED ultraoscuros (`#090D16`), tarjetas Slate elevadas (`#1E293B`) y acentos de foco en azul eléctrico brillante (`#2563EB`) y ámbar VIP (`#F59E0B`).
 *   **100% Libre de Cuentas de Usuario y Datos Falsos:** No requiere inicio de sesión, ni perfiles, ni sincronización externa; toda la información mostrada es verídica (reloj del sistema en tiempo real `HH:mm`, estado real de proxy anti-geobloqueo y catálogo real sin guías EPG simuladas).
 
@@ -36,10 +60,20 @@
 
 ## 🌟 Características Principales
 
-*   **100% Autónoma:** Chari-IPTV TV no requiere servidores backend locales ni middlewares. Se conecta directamente a internet, descargando, parseando y validando las listas oficiales de canales IPTV en tiempo real.
+*   **100% Autónoma:** Chari-IPTV no requiere servidores backend locales ni middlewares. Se conecta directamente a internet, descargando, parseando y validando las listas oficiales de canales IPTV en tiempo real.
 *   **Zapping Rápido sin Salir del Video:** Despliegue con **D-Pad Izquierda (◀)** de la lista vertical de canales de la sección en curso. Permite cambiar de canal con **OK** o cerrar el menú con **D-Pad Derecha (▶)** o **Atrás**.
 *   **Integración con Pantalla de Inicio de Android TV (Leanback Home Channels):** Utiliza `androidx.tvprovider` para publicar una fila interactiva nativa (*"Chari-IPTV: Canales Destacados"*) en el launcher de Android TV / Google TV y sincronizar la fila del sistema *"Continuar viendo"* (Watch Next). Al seleccionar cualquier tarjeta en la pantalla principal del televisor, la app se abre y reproduce directamente ese canal.
-*   **Exclusividad 100% Habla Hispana y Ecosistema Multi-Fuente:** Integra un motor multi-proveedor (`IptvProvider`) con tres fuentes legales en español: **TDTChannels** (señales oficiales de España en alta definición), **Pluto TV España** (canales temáticos 24/7) e **IPTV-Org** (canales de toda Hispanoamérica), garantizando diversidad y failover automático ante caídas de listas.
+*   **Exclusividad 100% Habla Hispana y Ecosistema Multi-Fuente Multi-Proveedor:** Integra un motor multi-proveedor (`IptvProvider`) extensible con fuentes legales en español:
+    *   **TDTChannels:** Señales oficiales de España en alta definición (La 1, Antena 3, Telecinco, etc.).
+    *   **Pluto TV España:** Canales temáticos y de entretenimiento continuo 24/7.
+    *   **IPTV-Org:** Canales abiertos de toda Hispanoamérica con filtrado estricto anti-extranjero.
+    *   **Studio Ghibli Cine On-Demand (VOD):** Catálogo multimedia dedicado con los 25 largometrajes completos de Studio Ghibli en español latino (*Nausicaä del Valle del Viento*, *El viaje de Chihiro*, *Mi vecino Totoro*, *El increíble castillo vagabundo*, *La princesa Mononoke*, *El castillo en el cielo*, *El chico y la garza*, etc.) con sinopsis en español integrada, fuentes primarias BitChute y respaldo en Internet Archive con enlaces de alta estabilidad.
+*   **Reproductor Híbrido con Barra de Tiempo (SeekBar) para VOD:** `ExoPlayerView` detecta automáticamente si el medio en reproducción es un archivo de video estático (`.mp4`, `.mkv`, o categoría `ghibli`) o una transmisión en vivo. En contenido VOD, el reproductor despliega una barra de tiempo interactiva con la posición actual, duración total formateada (`HH:mm:ss`), estado de pausa/reproducción y soporte de salto temporal:
+    *   `[OK]` / `[ENTER]`: Alternar Pausa y Reanudar video.
+    *   `[◀] / [▶]`: Rebobinar o adelantar ±15 segundos al instante.
+    *   `[▼]`: Desplegar el catálogo lateral de capítulos y películas.
+    *   Badge adaptativo: Conmuta dinámicamente de `DIRECTO` a `CINE VOD`.
+    *   **Reconexión Automática Resiliente:** En transmisiones en directo ante inestabilidad o caídas de paquetes, ejecuta de inmediato un ciclo de **al menos 3 reintentos continuos** con feedback visual en pantalla antes de activar la ventana de desconexión.
 *   **Priorización Inteligente de Emisiones 24/7:** El motor de repositorio organiza y clasifica los canales situando al frente de la cuadrícula las transmisiones continuas 24/7 activas, evitando que canales comunitarios intermitentes o temporales `[Not 24/7]` entorpezcan la navegación del usuario.
 *   **Activación Selectiva de Proxy Anti-Geobloqueo (HTTP 403 / 451):** Servidor HTTP embebido en loopback local (`LocalHlsProxyServer`). Todas las transmisiones operan de manera directa y nativa por defecto; el proxy loopback solo y exclusivamente interviene si el servidor emisor rechaza la conexión con código HTTP 403 (Forbidden) o 451 (Geoblock), reescribiendo cabeceras (`Referer`, `Origin`, `User-Agent`) y manifiestos `.m3u8` en tiempo real.
 *   **DNS-over-HTTPS (DoH) Anti-Censura:** Pila de red OkHttp con resolución DNS cifrada (`1.1.1.1` de Cloudflare y Google DNS) con fallback resiliente. Bypasea censura y bloqueos a nivel DNS aplicados por operadores residenciales durante eventos en vivo sin requerir una VPN externa.
@@ -59,17 +93,19 @@
 
 ## 🛠️ Stack Tecnológico
 
+*   **Identificador de Aplicación (Package):** `com.qwertyaserty.chariiptv`
 *   **Versión de la App:** 1.2 (VersionCode 3)
 *   **Lenguaje:** Kotlin 2.0+ (JVM Toolchain 17 / Compatible JDK 21)
 *   **Target SDK:** Android SDK 36 (Android 16), Min SDK 24 (Android 7.0+)
 *   **UI Toolkit:** Jetpack Compose for TV (`androidx.tv:tv-foundation:1.0.0-alpha11`, `androidx.tv:tv-material:1.0.0`) y Material 3
+*   **Compatibilidad:** Android TV / Google TV / Fire TV / AOSP TV Box (`android.software.leanback = false`)
 *   **Android TV Home Provider:** `androidx.tvprovider:tvprovider:1.0.0` (Preview Channels, Preview Programs, Watch Next)
 *   **Reproductor Multimedia:** AndroidX Media3 ExoPlayer 1.9.0 (`OkHttpDataSource`, HLS `.m3u8`, MPEG-DASH `.mpd`, Jellyfin FFmpeg Audio Decoder, IptvLoadErrorPolicy)
 *   **Cliente HTTP & Red:** OkHttp 4.12.0 con **DNS-over-HTTPS (DoH)** y Micro-Proxy HLS en Loopback (`127.0.0.1:8899`)
 *   **Inyección de Dependencias:** Dagger Hilt 2.51.1
 *   **Asincronía & Reactividad:** Kotlin Coroutines (`async` / `awaitAll`), Dispatchers (`IO` / `Main`), StateFlow
 *   **Carga de Imágenes:** Coil Compose 2.6.0 + Coil SVG 2.6.0 (`SubcomposeAsyncImage`, `ImageLoaderFactory`, DiskCache 100MB)
-*   **Persistencia Local:** Room Database 2.6.1 (Caché de Canales v5 y Favoritos autónomos con clave compuesta)
+*   **Persistencia Local:** Room Database 2.6.1 (Caché de Canales v13 con migración de purga `MIGRATION_12_13` y Favoritos autónomos con fuentes espejo)
 *   **Minificación y Seguridad:** ProGuard / R8 con reglas optimizadas y supresión de llamadas de logs en Release
 *   **Build System:** Gradle (Kotlin DSL con Version Catalog `libs.versions.toml`)
 
@@ -97,11 +133,11 @@
    ```powershell
    $env:JAVA_HOME = "C:\Users\QwertyAserty\.jdks\temurin-21.0.13"
    ```
-3. Compila el APK optimizado con R8 (8.44 MB):
+3. Compila el APK optimizado con R8 (~8.48 MB):
    ```powershell
    .\gradlew.bat assembleRelease
    ```
-   *Ruta del binario generado:* `app\build\outputs\apk\release\app-release.apk`
+   *Ruta del binario generado:* `app\build\outputs\apk\release\Chari-IPTV_1.2.apk`
 
 4. Para compilar el Android App Bundle para Google Play Store (8.53 MB):
    ```powershell
@@ -118,13 +154,13 @@
 ### Instalación en el Smart TV o TV Box vía ADB
 Si tienes activada la depuración USB / de red en tu televisor o TV Box (Android TV / Google TV):
 ```powershell
-# Conectar por IP en red local
+# Conectar por IP en red local (si es por Wi-Fi)
 adb connect 192.168.1.X:5555
 
 # Instalar o actualizar el APK Release
-adb install -r app\build\outputs\apk\release\app-release.apk
+adb install -r "app\build\outputs\apk\release\Chari-IPTV_1.2.apk"
 ```
 
 ### Instalación Alternativa (Sin ADB)
-*   **Memoria USB (Pendrive):** Copia el archivo `app-release.apk` a un pendrive, conéctalo a la TV y ábrelo con un explorador de archivos (*File Commander*, *X-plore*).
-*   **Envío por Red Local (Wi-Fi):** Utiliza la aplicación **"Send Files to TV"** para transferir el APK directamente desde tu PC o teléfono a tu Android TV.
+*   **Memoria USB (Pendrive):** Copia el archivo `Chari-IPTV_1.2.apk` a un pendrive, conéctalo a la TV y ábrelo con un explorador de archivos (*File Commander*, *X-plore*).
+*   **Envío por Red Local (Wi-Fi):** Utiliza la aplicación **"Send Files to TV"** o **LocalSend** para transferir el archivo `Chari-IPTV_1.2.apk` directamente desde tu PC o teléfono a tu Android TV.

@@ -154,7 +154,8 @@ class MainActivity : ComponentActivity() {
                                 } else {
                                     "⭐ Añadido a favoritos"
                                 }
-                            }
+                            },
+                            onChannelFocused = { viewModel.prewarmChannel(it) }
                         )
                     }
 
@@ -246,10 +247,12 @@ fun ChannelGridScreen(
     favorites: Set<String>,
     isLoading: Boolean,
     onChannelClick: (Channel) -> Unit,
-    onToggleFavorite: (Channel) -> Unit
+    onToggleFavorite: (Channel) -> Unit,
+    onChannelFocused: (Channel) -> Unit = {}
 ) {
     // Respeta el orden de prioridad 24/7 calculado en Dispatchers.IO y garantiza URLs únicas como clave estable
     val sortedChannels = remember(channels) { channels.distinctBy { it.url } }
+    val isGhibli = selectedFilterId == "ghibli"
     val selectedFilterFocusRequester = remember { FocusRequester() }
     val selectedCountryFocusRequester = remember { FocusRequester() }
     val coroutineScope = rememberCoroutineScope()
@@ -298,7 +301,8 @@ fun ChannelGridScreen(
             MainNavItem("movies", "Películas", "🎬"),
             MainNavItem("series", "Series", "📺"),
             MainNavItem("animation", "Infantil", "👶"),
-            MainNavItem("music", "Música", "🎵")
+            MainNavItem("music", "Música", "🎵"),
+            MainNavItem("ghibli", "Studio Ghibli", "")
         )
     }
 
@@ -387,7 +391,7 @@ fun ChannelGridScreen(
             val hasChannels = sortedChannels.isNotEmpty()
             if (hasChannels) {
                 Text(
-                    text = "${sortedChannels.size} canales activos en $currentFilterTitle",
+                    text = "${sortedChannels.size} ${if (selectedFilterId == "ghibli") "películas disponibles" else "canales activos"} en $currentFilterTitle",
                     color = TvOutline,
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.Medium
@@ -403,8 +407,8 @@ fun ChannelGridScreen(
                 )
             }
 
-            // Botón Escanear para refrescar fuentes en vivo
-            if (selectedFilterId != "fav") {
+            // Botón Escanear para refrescar fuentes en vivo (excluido en Favoritos y Ghibli)
+            if (selectedFilterId != "fav" && selectedFilterId != "ghibli") {
                 Surface(
                     onClick = {
                         if (selectedFilterId == "countries") {
@@ -490,7 +494,7 @@ fun ChannelGridScreen(
             }
         }
 
-        // 4. Área de Contenido Principal (Grilla 4 columnas de tarjetas 16:11)
+        // 4. Área de Contenido Principal (Grilla 2 columnas para Studio Ghibli con sinopsis, 4 columnas para TV)
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -548,7 +552,7 @@ fun ChannelGridScreen(
             } else {
                 LazyVerticalGrid(
                     state = gridState,
-                    columns = GridCells.Fixed(4),
+                    columns = if (isGhibli) GridCells.Fixed(2) else GridCells.Fixed(4),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                     modifier = Modifier.fillMaxSize(),
@@ -559,13 +563,22 @@ fun ChannelGridScreen(
                         key = { _, channel -> channel.url }
                     ) { _, channel ->
                         val isFav = favorites.contains(channel.url)
-                        ChannelCardView(
-                            channel = channel,
-                            isFavorite = isFav,
-                            onClick = { onChannelClick(channel) },
-                            onLongClick = { onToggleFavorite(channel) },
-                            onToggleFavorite = { onToggleFavorite(channel) }
-                        )
+                        if (isGhibli) {
+                            GhibliMovieCardView(
+                                channel = channel,
+                                onClick = { onChannelClick(channel) },
+                                onFocused = { onChannelFocused(channel) }
+                            )
+                        } else {
+                            ChannelCardView(
+                                channel = channel,
+                                isFavorite = isFav,
+                                onClick = { onChannelClick(channel) },
+                                onLongClick = { onToggleFavorite(channel) },
+                                onToggleFavorite = { onToggleFavorite(channel) },
+                                onFocused = { onChannelFocused(channel) }
+                            )
+                        }
                     }
                 }
             }
@@ -574,6 +587,7 @@ fun ChannelGridScreen(
         // 5. Pie de Pantalla Fijo (Guía D-Pad y VERSIÓN DE LA APP EN LA PARTE INFERIOR DERECHA)
         TvFooterBar(
             channelCountText = if (sortedChannels.isNotEmpty()) "$currentFilterTitle (${sortedChannels.size})" else "",
+            showFavoriteHint = !isGhibli,
             modifier = Modifier.padding(top = 4.dp)
         )
     }
@@ -599,12 +613,12 @@ fun ChannelGridScreen(
 
         androidx.compose.ui.window.Dialog(
             onDismissRequest = {
-                val isC = isCountry
+                val wasCountry = isCountry
                 itemToRefresh = null
                 coroutineScope.launch {
                     delay(60)
                     try {
-                        if (isC) {
+                        if (wasCountry) {
                             selectedCountryFocusRequester.requestFocus()
                         } else {
                             selectedFilterFocusRequester.requestFocus()
@@ -647,12 +661,12 @@ fun ChannelGridScreen(
                     ) {
                         Surface(
                             onClick = {
-                                val isC = isCountry
+                                val wasCountry = isCountry
                                 itemToRefresh = null
                                 coroutineScope.launch {
                                     delay(60)
                                     try {
-                                        if (isC) {
+                                        if (wasCountry) {
                                             selectedCountryFocusRequester.requestFocus()
                                         } else {
                                             selectedFilterFocusRequester.requestFocus()
@@ -690,9 +704,9 @@ fun ChannelGridScreen(
                         Surface(
                             onClick = {
                                 val id = refreshId
-                                val isC = isCountry
+                                val wasCountry = isCountry
                                 itemToRefresh = null
-                                if (isC) {
+                                if (wasCountry) {
                                     onCountrySelected(id, true)
                                 } else {
                                     onFilterSelected(id, true)
@@ -700,7 +714,7 @@ fun ChannelGridScreen(
                                 coroutineScope.launch {
                                     delay(60)
                                     try {
-                                        if (isC) {
+                                        if (wasCountry) {
                                             selectedCountryFocusRequester.requestFocus()
                                         } else {
                                             selectedFilterFocusRequester.requestFocus()

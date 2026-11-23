@@ -20,6 +20,9 @@ interface CachedChannelDao {
     @Query("DELETE FROM cached_channels WHERE countryCode = :countryCode")
     suspend fun deleteChannelsByCountry(countryCode: String)
 
+    @Query("DELETE FROM cached_channels")
+    suspend fun clearAllCache()
+
     @Transaction
     suspend fun replaceChannelsForCountry(countryCode: String, channels: List<CachedChannel>) {
         deleteChannelsByCountry(countryCode)

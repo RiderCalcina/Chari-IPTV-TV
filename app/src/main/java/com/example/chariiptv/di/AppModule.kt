@@ -12,6 +12,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.Cache
+import okhttp3.ConnectionPool
 import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
@@ -21,10 +22,19 @@ import java.io.File
 import java.net.InetAddress
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import javax.inject.Qualifier
 import javax.inject.Singleton
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class SecureClient
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class MediaClient
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -32,6 +42,22 @@ object AppModule {
 
     private const val DEFAULT_UA =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+
+    private fun createHeaderInterceptor(): Interceptor = Interceptor { chain ->
+        val request = chain.request()
+        val builder = request.newBuilder()
+
+        if (request.header("User-Agent") == null) {
+            builder.header("User-Agent", DEFAULT_UA)
+        }
+        if (request.header("Accept") == null) {
+            builder.header("Accept", "*/*")
+        }
+        if (request.header("Accept-Language") == null) {
+            builder.header("Accept-Language", "es-ES,es;q=0.9,en;q=0.8")
+        }
+        chain.proceed(builder.build())
+    }
 
     @Provides
     @Singleton
@@ -70,24 +96,48 @@ object AppModule {
         }
     }
 
+    /**
+     * Cliente OkHttp estrictamente SEGURO:
+     * - Validación íntegra de certificados SSL/TLS y Hostname Verification del sistema Android
+     * - Utilizado para APIs críticas: GitHub M3Us oficiales, GeoIP (country.is) y Blog RSS
+     */
     @Provides
     @Singleton
-    fun provideUnsafeOkHttpClient(dohDns: Dns): OkHttpClient {
-        val headerInterceptor = Interceptor { chain ->
-            val request = chain.request()
-            val builder = request.newBuilder()
+    @SecureClient
+    fun provideSecureOkHttpClient(dohDns: Dns): OkHttpClient {
+        return OkHttpClient.Builder()
+            .dns(dohDns)
+            .addInterceptor(createHeaderInterceptor())
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .retryOnConnectionFailure(true)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(12, TimeUnit.SECONDS)
+            .build()
+    }
 
-            if (request.header("User-Agent") == null) {
-                builder.header("User-Agent", DEFAULT_UA)
-            }
-            if (request.header("Accept") == null) {
-                builder.header("Accept", "*/*")
-            }
-            if (request.header("Accept-Language") == null) {
-                builder.header("Accept-Language", "es-ES,es;q=0.9,en;q=0.8")
-            }
-            chain.proceed(builder.build())
-        }
+    /**
+     * Cliente OkHttp por defecto para inyecciones no calificadas:
+     * Proporciona el cliente seguro por defecto a repositorios y proveedores de listas.
+     */
+    @Provides
+    @Singleton
+    fun provideDefaultOkHttpClient(@SecureClient secureClient: OkHttpClient): OkHttpClient {
+        return secureClient
+    }
+
+    /**
+     * Cliente OkHttp optimizado para MEDIOS y STREAMING:
+     * - Bypass SSL justificado para emisoras regionales de televisión con certificados caducados/desalineados
+     * - Pool de conexiones persistentes (8 conexiones, 30s) para reciclaje ultra-rápido de fragmentos HLS (.ts/.m4s)
+     * - Utilizado exclusivamente por ExoPlayer y LocalHlsProxyServer
+     */
+    @Provides
+    @Singleton
+    @MediaClient
+    fun provideMediaOkHttpClient(dohDns: Dns): OkHttpClient {
+        val headerInterceptor = createHeaderInterceptor()
+        val mediaConnectionPool = ConnectionPool(8, 30L, TimeUnit.SECONDS)
 
         return try {
             val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
@@ -99,6 +149,7 @@ object AppModule {
             sslContext.init(null, trustAllCerts, java.security.SecureRandom())
             OkHttpClient.Builder()
                 .dns(dohDns)
+                .connectionPool(mediaConnectionPool)
                 .sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
                 .hostnameVerifier { _, _ -> true }
                 .addInterceptor(headerInterceptor)
@@ -111,6 +162,7 @@ object AppModule {
         } catch (e: Exception) {
             OkHttpClient.Builder()
                 .dns(dohDns)
+                .connectionPool(mediaConnectionPool)
                 .addInterceptor(headerInterceptor)
                 .followRedirects(true)
                 .followSslRedirects(true)
@@ -123,7 +175,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideLocalHlsProxyServer(okHttpClient: OkHttpClient): LocalHlsProxyServer {
+    fun provideLocalHlsProxyServer(@MediaClient okHttpClient: OkHttpClient): LocalHlsProxyServer {
         return LocalHlsProxyServer(okHttpClient)
     }
 
@@ -135,7 +187,7 @@ object AppModule {
             AppDatabase::class.java,
             "tvdroid_db"
         )
-            .addMigrations(AppDatabase.MIGRATION_11_12)
+            .addMigrations(AppDatabase.MIGRATION_11_12, AppDatabase.MIGRATION_12_13)
             .fallbackToDestructiveMigration()
             .build()
     }
