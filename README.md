@@ -4,6 +4,13 @@ Aplicación nativa moderna para Smart TVs y dispositivos **Android TV, Google TV
 
 ---
 
+<p align="center">
+  <img src="capt/i01.png" width="49%" alt="Captura Chari-IPTV 1" />
+  <img src="capt/i02.png" width="49%" alt="Captura Chari-IPTV 2" />
+</p>
+
+---
+
 ## ✨ Características de la Versión 1.2
 
 * 📺 **Televisión en Vivo 100% en Español:** Canales organizados por categorías temáticas (**Deportes, Noticias, Películas, Series, Infantil, Música**) y explorador de países hispanohablantes (Perú, Argentina, España, México, Colombia, Chile y más) con detección automática de país por región.
