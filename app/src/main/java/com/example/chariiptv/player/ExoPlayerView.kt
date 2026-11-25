@@ -363,13 +363,19 @@ fun ExoPlayerView(
                 } else {
                     // Modo En Vivo (Live TV)
                     when (keyCode) {
-                        KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_DOWN -> {
                             if (isActionDown && event.repeatCount == 0) {
                                 if (channelsList.isNotEmpty()) {
                                     isSideDrawerVisible = true
                                     isHudVisible = false
                                     drawerInteractionTrigger = System.currentTimeMillis()
                                 }
+                            }
+                            true
+                        }
+                        KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                            if (isActionDown && event.repeatCount == 0) {
+                                isHudVisible = false
                             }
                             true
                         }

@@ -1,6 +1,9 @@
 package com.example.chariiptv
 
+import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
+import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
@@ -266,13 +269,56 @@ class MainActivity : ComponentActivity() {
             }
             is LanRemoteEvent.SendKeyEvent -> {
                 lifecycleScope.launch(Dispatchers.Main) {
-                    val downTime = android.os.SystemClock.uptimeMillis()
-                    val actionDown = KeyEvent(downTime, downTime, KeyEvent.ACTION_DOWN, event.keyCode, 0)
-                    dispatchKeyEvent(actionDown)
-                    delay(50)
-                    val upTime = android.os.SystemClock.uptimeMillis()
-                    val actionUp = KeyEvent(downTime, upTime, KeyEvent.ACTION_UP, event.keyCode, 0)
-                    dispatchKeyEvent(actionUp)
+                    when (event.keyCode) {
+                        KeyEvent.KEYCODE_HOME -> {
+                            // Botón "Inicio": si está reproduciendo, cerrar reproductor y volver al menú principal
+                            if (tvViewModel.uiState.value.currentChannel != null) {
+                                tvViewModel.playChannel(null)
+                            } else {
+                                tvViewModel.selectFilter("fav")
+                            }
+                        }
+                        KeyEvent.KEYCODE_BACK -> {
+                            // Botón "Atrás": primero intentar cerrar el cajón lateral si está abierto
+                            val downTime = android.os.SystemClock.uptimeMillis()
+                            val actionDown = KeyEvent(downTime, downTime, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK, 0)
+                            val actionUp = KeyEvent(downTime, downTime + 50, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK, 0)
+                            val handled = (playerKeyHandler?.invoke(actionDown) == true) || (playerKeyHandler?.invoke(actionUp) == true)
+                            if (!handled) {
+                                if (tvViewModel.uiState.value.currentChannel != null) {
+                                    tvViewModel.playChannel(null)
+                                } else {
+                                    onBackPressedDispatcher.onBackPressed()
+                                }
+                            }
+                        }
+                        KeyEvent.KEYCODE_VOLUME_UP -> {
+                            val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                            audioManager?.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
+                        }
+                        KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                            val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                            audioManager?.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
+                        }
+                        KeyEvent.KEYCODE_VOLUME_MUTE -> {
+                            val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                audioManager?.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_TOGGLE_MUTE, AudioManager.FLAG_SHOW_UI)
+                            } else {
+                                @Suppress("DEPRECATION")
+                                audioManager?.setStreamMute(AudioManager.STREAM_MUSIC, true)
+                            }
+                        }
+                        else -> {
+                            val downTime = android.os.SystemClock.uptimeMillis()
+                            val actionDown = KeyEvent(downTime, downTime, KeyEvent.ACTION_DOWN, event.keyCode, 0)
+                            dispatchKeyEvent(actionDown)
+                            delay(50)
+                            val upTime = android.os.SystemClock.uptimeMillis()
+                            val actionUp = KeyEvent(downTime, upTime, KeyEvent.ACTION_UP, event.keyCode, 0)
+                            dispatchKeyEvent(actionUp)
+                        }
+                    }
                 }
             }
             is LanRemoteEvent.SetSearchQuery -> {
