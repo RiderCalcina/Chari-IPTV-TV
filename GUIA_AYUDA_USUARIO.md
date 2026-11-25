@@ -123,7 +123,7 @@ Chari-IPTV integra en segundo plano un servidor micro-HTTP de alto rendimiento d
  │                      │   REST / HTTP 8990 │                      │
  │ - Control D-Pad      │ ─────────────────▶ │ - Servidor TvLanServer│
  │ - Escribir Búsquedas │                    │ - EventBus de Teclas │
- │ - Sincronizar Favs   │ ─────────────────▶ │ - Inyección a Room   │
+ │ - Sincronizar Favoritos│ ─────────────────▶ │ - Inyección a Room   │
  └──────────────────────┘                    └──────────────────────┘
 ```
 
