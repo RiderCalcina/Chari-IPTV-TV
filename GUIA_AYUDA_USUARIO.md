@@ -122,7 +122,7 @@ Chari-IPTV integra en segundo plano un servidor micro-HTTP de alto rendimiento d
  │ Chari-IPTV Cel (Móvil)│ ────────────────▶  │ Chari-IPTV (Smart TV) │
  │                      │   REST / HTTP 8990 │                      │
  │ - Control D-Pad      │ ─────────────────▶ │ - Servidor TvLanServer│
- │ - Escribir Búsquedas │                    │ - EventBus de Teclas │
+ │ - Buscar en TV       │                    │ - EventBus de Teclas │
  │ - Sincronizar Favoritos│ ─────────────────▶ │ - Inyección a Room   │
  └──────────────────────┘                    └──────────────────────┘
 ```

@@ -232,4 +232,8 @@ class TvViewModel @Inject constructor(
             repository.prewarmStream(channel.url)
         }
     }
+
+    suspend fun searchChannelsGlobally(query: String): List<Channel> {
+        return repository.searchChannelsGlobally(query)
+    }
 }

@@ -102,6 +102,83 @@ class ChannelRepository @Inject constructor(
 
     suspend fun getFavoriteChannels(urls: List<String>): List<Channel> = getFavoriteChannels()
 
+    suspend fun searchChannelsGlobally(query: String): List<Channel> = withContext(Dispatchers.IO) {
+        val q = query.trim().lowercase()
+        if (q.isBlank()) return@withContext emptyList()
+
+        val dbDeferred = async {
+            try {
+                cachedChannelDao.searchCachedChannels(q).map { it.toDomainChannel() }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+
+        val favDeferred = async {
+            try {
+                favoriteDao.getFavoriteChannels()
+                    .map { it.toDomainChannel() }
+                    .filter { it.name.lowercase().contains(q) }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+
+        val spanishDeferred = async {
+            try {
+                iptvOrgProvider.fetchSpanishChannels()
+                    .filter { it.name.lowercase().contains(q) || it.category.lowercase().contains(q) }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+
+        val tdtDeferred = async {
+            try {
+                tdtChannelsProvider.fetchChannels()
+                    .filter { it.name.lowercase().contains(q) || it.category.lowercase().contains(q) }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+
+        val plutoDeferred = async {
+            try {
+                plutoTvProvider.fetchChannels()
+                    .filter { it.name.lowercase().contains(q) || it.category.lowercase().contains(q) }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+
+        val ghibliDeferred = async {
+            try {
+                aniVodProvider.fetchGhibliChannels()
+                    .filter { it.name.lowercase().contains(q) }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+
+        val combined = sequenceOf(
+            favDeferred.await(),
+            dbDeferred.await(),
+            spanishDeferred.await(),
+            tdtDeferred.await(),
+            plutoDeferred.await(),
+            ghibliDeferred.await()
+        ).flatten().filter { ch ->
+            ch.url.isNotBlank() &&
+            (ch.name.lowercase().contains(q) || ch.category.lowercase().contains(q)) &&
+            !Constants.isForeignOrBlocked(ch.name, ch.url) &&
+            !ch.url.contains("PlaylistM3UCL", ignoreCase = true) &&
+            !ch.url.contains("telechancho", ignoreCase = true) &&
+            !ch.url.contains("archive.org", ignoreCase = true)
+        }
+
+        mergeChannelsWithMirrors(combined)
+    }
+
     suspend fun getChannelsByCountry(countryCode: String, forceRefresh: Boolean = false): List<Channel> = withContext(Dispatchers.IO) {
         val normalizedCode = countryCode.lowercase()
         val now = System.currentTimeMillis()

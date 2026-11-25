@@ -330,6 +330,14 @@ class MainActivity : ComponentActivity() {
                     val match = currentChannels.find { it.name.lowercase().contains(query) }
                     if (match != null) {
                         tvViewModel.playChannel(match)
+                    } else {
+                        lifecycleScope.launch {
+                            val globalResults = tvViewModel.searchChannelsGlobally(query)
+                            val globalMatch = globalResults.firstOrNull()
+                            if (globalMatch != null) {
+                                tvViewModel.playChannel(globalMatch)
+                            }
+                        }
                     }
                 }
             }

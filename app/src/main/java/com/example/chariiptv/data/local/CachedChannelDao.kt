@@ -14,6 +14,9 @@ interface CachedChannelDao {
     @Query("SELECT * FROM cached_channels WHERE url IN (:urls)")
     suspend fun getChannelsByUrls(urls: List<String>): List<CachedChannel>
 
+    @Query("SELECT * FROM cached_channels WHERE name LIKE '%' || :query || '%'")
+    suspend fun searchCachedChannels(query: String): List<CachedChannel>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertChannels(channels: List<CachedChannel>)
 
