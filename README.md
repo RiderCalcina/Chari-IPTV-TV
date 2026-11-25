@@ -1,43 +1,78 @@
-# 📺 Chari-IPTV (v1.2)
+# 📺 Chari-IPTV (Edición Smart TV & TV Box) v1.2
 
-Aplicación nativa moderna para Smart TVs y dispositivos **Android TV, Google TV y Fire TV Sticks**. Diseñada especialmente para disfrutar de televisión en vivo y cine bajo demanda en español con una experiencia visual fluida, elegante y totalmente adaptada al control remoto de la sala de estar.
+[![Android TV](https://img.shields.io/badge/Plataforma-Android%20TV%20%7C%20Google%20TV%20%7C%20Fire%20TV-green.svg)](https://developer.android.com/tv)
+[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0%2B-blue.svg)](https://kotlinlang.org)
+[![Compose TV](https://img.shields.io/badge/Jetpack%20Compose%20for%20TV-Material%203-purple.svg)](https://developer.android.com/jetpack/compose/tv)
+[![Version](https://img.shields.io/badge/Versi%C3%B3n-1.2-brightgreen.svg)]()
+[![LAN Server](https://img.shields.io/badge/LAN%20Micro--Server-Puerto%208990-orange.svg)]()
+[![License](https://img.shields.io/badge/Licencia-Libre%20Acceso-orange.svg)]()
+
+**Chari-IPTV** es una aplicación nativa moderna de alto rendimiento desarrollada exclusivamente para Smart TVs y dispositivos **Android TV, Google TV y Fire TV Sticks**. Diseñada especialmente para disfrutar de televisión abierta en vivo y cine bajo demanda en español con una experiencia visual cinematográfica, fluida y totalmente adaptada al mando a distancia de la sala de estar y al ecosistema interconectado con [Chari-IPTV Cel](https://github.com/RiderCalcina/Chary-IPTV).
 
 ---
 
 <p align="center">
-  <img src="capt/i01.png" width="49%" alt="Captura Chari-IPTV 1" />
-  <img src="capt/i02.png" width="49%" alt="Captura Chari-IPTV 2" />
+  <img src="capt/i01.png" width="49%" alt="Captura Chari-IPTV TV 1" />
+  <img src="capt/i02.png" width="49%" alt="Captura Chari-IPTV TV 2" />
 </p>
 
 ---
 
-## ✨ Características de la Versión 1.2
+## ✨ Características Principales de la Versión 1.2
 
-* 📺 **Televisión en Vivo 100% en Español:** Canales organizados por categorías temáticas (**Deportes, Noticias, Películas, Series, Infantil, Música**) y explorador de países hispanohablantes (Perú, Argentina, España, México, Colombia, Chile y más) con detección automática de país por región.
-* 🎬 **Colección Oficial Studio Ghibli (25 Películas):** Catálogo cinematográfico completo en riguroso orden cronológico (1984–2023) desde *Nausicaä del Valle del Viento* hasta *El chico y la garza*, en audio latino de alta calidad y con sinopsis detallada.
+* 📺 **Televisión en Vivo 100% en Español:** Canales organizados por categorías temáticas (**Deportes, Noticias, Películas, Series, Infantil, Música**) y explorador de países hispanohablantes (Perú, Argentina, España, México, Colombia, Chile y más) con detección automática de región.
+* 🎬 **Colección Oficial Studio Ghibli (25 Películas):** Catálogo cinematográfico íntegro en riguroso orden cronológico (1984–2023) desde *Nausicaä del Valle del Viento* hasta *El chico y la garza*, en audio latino de alta calidad y con sinopsis detallada.
 * ⏱️ **Reanudación Inteligente de Películas:** Si sales de una película de Studio Ghibli o apagas la app, al volver a entrar la aplicación te preguntará automáticamente si deseas **Continuar donde lo dejaste** (indicando el minuto exacto) o **Comenzar de nuevo** desde el principio.
-* ⚡ **Zapping Lateral sin Salir del Video (Quick Drawer):** Al presionar la flecha **Izquierda (◀)** del control remoto mientras reproduces un canal, se despliega una lista lateral para cambiar de canal al instante sin interrumpir la transmisión.
-* ⭐ **Lista de Favoritos:** Guarda tus canales preferidos fácilmente manteniendo presionado el botón central (**OK**) en la lista o presionando **Arriba (▲)** durante la reproducción.
-* 🎨 **Diseño Obsidian Cinema TV:** Interfaz visual con fondo oscuro puro ideal para televisores OLED, tarjetas de alta visibilidad y marcos de enfoque luminosos que facilitan la navegación a distancia.
-* 🚀 **Integración con la Pantalla de Inicio:** Fila nativa de canales destacados en la pantalla principal de Android TV para acceder a tus contenidos con un solo clic.
+* ⚡ **Zapping Lateral sin Salir del Video (Quick Drawer):** Al presionar la flecha **Izquierda (◀)** del control remoto mientras reproduces un canal, se despliega una lista lateral para cambiar de canal al instante sin interrumpir la transmisión actual.
+* ⭐ **Gestión de Favoritos:** Guarda tus canales preferidos fácilmente manteniendo presionado el botón central (**OK**) en la lista o presionando **Arriba (▲)** durante la reproducción en vivo.
+* 🎨 **Diseño Obsidian Cinema TV:** Interfaz visual con fondo oscuro puro ideal para paneles OLED/QLED, tarjetas de alta visibilidad y marcos de enfoque luminosos que facilitan la navegación a distancia.
+* 🚀 **Integración con la Pantalla de Inicio:** Fila nativa de canales recomendados en el launcher principal de Android TV para acceder a tus contenidos con un solo clic.
+* 🌐 **Servidor Micro-HTTP LAN & Descubrimiento mDNS (Novedad v1.2):**
+  * Servidor HTTP local embebido que escucha en el puerto `8990`.
+  * Difusión automática mediante mDNS (`_chari-tv._tcp.`) que permite ser descubierta al instante por teléfonos con la app móvil.
+  * Protección Anti-SSRF estricta: solo acepta conexiones provenientes de subredes privadas locales (RFC 1918).
+  * Control remoto total desde el celular: cruceta virtual, volumen, teclado remoto y sincronización de favoritos en tiempo real.
 * 🔒 **100% Libre y Privada:** No requiere registro, no pide inicio de sesión, no contiene publicidad intrusiva ni rastreadores.
 
 ---
 
-## 🎮 Controles de Navegación (Mando a Distancia)
+## 🎮 Controles de Navegación (Mando a Distancia Físico)
 
 | Botón del Control | En la Pantalla Principal | Durante la Reproducción (TV en Vivo) | Durante la Reproducción (Studio Ghibli) |
 | :--- | :--- | :--- | :--- |
 | **OK / Centro** | Abrir canal o película seleccionada | Mostrar / Ocultar barra de información | Pausar / Reanudar la película |
-| **◀ Izquierda** | Moverse entre tarjetas | Abrir menú lateral de canales rápidos | Retroceder 15 segundos |
-| **▶ Derecha** | Moverse entre tarjetas | Cerrar menú lateral | Avanzar 15 segundos |
-| **▲ Arriba** | Subir a las pestañas y filtros | Añadir o quitar canal de Favoritos (⭐) | - |
+| **◀ Izquierda** | Moverse entre tarjetas | Abrir menú lateral de canales rápidos (Zapping) | Retroceder 15 segundos |
+| **▶ Derecha** | Moverse entre tarjetas | Cerrar menú lateral de zapping | Avanzar 15 segundos |
+| **▲ Arriba** | Subir a las pestañas y filtros superiores | Añadir o quitar canal de Favoritos (⭐) | - |
 | **▼ Abajo** | Bajar a la cuadrícula de canales | - | Desplegar catálogo lateral de películas |
 | **Atrás (Back)** | Subir directamente al menú superior | Salir al menú principal | Menú de salida / volver a la lista |
 
 ---
 
-## 📥 Instalación en Smart TV o TV Box
+## 📲 Ecosistema Interconectado con Chari-IPTV Cel
+
+Al utilizar conjuntamente **Chari-IPTV (TV)** y **Chari-IPTV Cel (Móvil)** en la misma red Wi-Fi:
+
+```
+┌─────────────────────────────────┐               ┌─────────────────────────────────┐
+│     Chari-IPTV Cel (Móvil)      │               │     Chari-IPTV (Smart TV)       │
+│                                 │               │                                 │
+│  - Descubrimiento mDNS automático ───────────────▶  - Broadcaster mDNS (_chari-tv)│
+│  - Botón "Enviar a TV"          │  REST / HTTP  │  - Micro-HTTP Server (Port 8990)│
+│  - Cruceta D-Pad táctil         │───────────────▶  - Inyector de eventos D-Pad    │
+│  - Teclado móvil para búsquedas │  (Subred LAN) │  - Sintonización directa ExoPlay│
+│  - Sincronización de Favoritos  │               │  - Base de datos Room TV        │
+└─────────────────────────────────┘               └─────────────────────────────────┘
+```
+
+1. **Sintonización Instantánea:** Toca cualquier canal en el celular y presiona "Enviar a TV"; la tele sintoniza la señal de inmediato sin consumir batería del móvil.
+2. **Control Remoto Táctil:** Usa la cruceta circular en la pantalla de tu móvil si se te extravió el control de la tele o no tiene pilas.
+3. **Búsquedas Rápidas:** Escribe los nombres de los canales desde el teclado del celular en vez de navegar letra por letra en la pantalla grande.
+4. **Sincronización:** Traspasa tu lista de canales favoritos del celular a la TV con un solo botón.
+
+---
+
+## 📥 Métodos de Instalación en Smart TV o TV Box
 
 El archivo instalador listo para usar es **`Chari-IPTV_1.2.apk`**.
 
@@ -55,6 +90,13 @@ Si tienes activada la depuración USB o de red en tu dispositivo:
 ```powershell
 adb install -r Chari-IPTV_1.2.apk
 ```
+
+---
+
+## 📖 Documentación y Guías
+
+* 📘 **[Guía de Ayuda Completa y Manual de Usuario TV](file:///C:/xampp/htdocs/Chari-IPTV_TV/GUIA_AYUDA_USUARIO.md):** Manual detallado paso a paso sobre el funcionamiento de la aplicación en el televisor, controles avanzados, uso del servidor local y resolución de problemas comunes.
+* 📱 **[Repositorio Chari-IPTV Celular](https://github.com/RiderCalcina/Chary-IPTV):** Código fuente y documentación de la versión móvil complementaria.
 
 ---
 
