@@ -135,7 +135,7 @@ Chari-IPTV integra en segundo plano un servidor micro-HTTP de alto rendimiento d
    * `/api/command` con acción `play`: Sintoniza canales enviados desde el celular con cero retardo.
    * `/api/remote` con acciones de tecla: Simula las pulsaciones del control remoto físico (`up`, `down`, `left`, `right`, `enter`, `back`, `home`, `play_pause`, `volume_up`, `volume_down`, `mute`).
    * `/api/remote` con acción `text`: Introduce textos de búsqueda directamente desde el teclado táctil del móvil.
-   * `/api/favorites`: Recibe y guarda la lista de canales favoritos sincronizada desde el teléfono.
+   * `/api/command` con acción `SYNC_FAVORITES`: Sincronización bidireccional que fusiona los favoritos de la TV y del celular, insertando los que faltan en ambos dispositivos y devolviendo la lista completa unificada.
 
 ---
 

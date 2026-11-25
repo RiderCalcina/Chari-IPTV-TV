@@ -3,8 +3,11 @@ package com.example.chariiptv.remote
 import android.os.Build
 import android.util.Log
 import android.view.KeyEvent
+import com.example.chariiptv.data.local.FavoriteChannel
+import com.example.chariiptv.data.local.FavoriteDao
 import com.example.chariiptv.domain.Channel
 import com.example.chariiptv.domain.StreamSource
+import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
@@ -19,7 +22,8 @@ import javax.inject.Singleton
 
 @Singleton
 class TvLanServer @Inject constructor(
-    private val eventBus: LanRemoteEventBus
+    private val eventBus: LanRemoteEventBus,
+    private val favoriteDao: FavoriteDao
 ) {
     companion object {
         private const val TAG = "TvLanServer"
@@ -215,12 +219,68 @@ class TvLanServer @Inject constructor(
 
                 "SYNC_FAVORITES" -> {
                     val favsArray = json.optJSONArray("favorites") ?: JSONArray()
-                    val list = ArrayList<String>(favsArray.length())
+                    val incomingUrls = ArrayList<String>()
+
                     for (i in 0 until favsArray.length()) {
-                        list.add(favsArray.getString(i))
+                        val item = favsArray.optJSONObject(i)
+                        if (item != null) {
+                            val url = item.optString("url", "")
+                            val name = item.optString("name", "")
+                            val logo = item.optString("logo", "")
+                            val referer = item.optString("referer", "")
+                            val userAgent = item.optString("userAgent", "")
+                            val alternateSourcesJson = item.optString("alternateSourcesJson", "")
+                            if (url.isNotBlank()) {
+                                incomingUrls.add(url)
+                                runBlocking {
+                                    favoriteDao.insertFavorite(
+                                        FavoriteChannel(
+                                            url = url,
+                                            name = name,
+                                            logo = logo,
+                                            referer = referer,
+                                            userAgent = userAgent,
+                                            alternateSourcesJson = alternateSourcesJson
+                                        )
+                                    )
+                                }
+                            }
+                        } else {
+                            val url = favsArray.optString(i, "")
+                            if (url.isNotBlank()) {
+                                incomingUrls.add(url)
+                            }
+                        }
                     }
-                    eventBus.emit(LanRemoteEvent.SyncFavorites(list))
-                    sendResponse(socket, 200, "OK", JSONObject().put("status", "OK").put("synced", list.size).toString())
+
+                    if (incomingUrls.isNotEmpty()) {
+                        eventBus.emit(LanRemoteEvent.SyncFavorites(incomingUrls))
+                    }
+
+                    // Obtener la totalidad de favoritos mezclados de la TV para devolver al celular (Sincronización Bidireccional)
+                    val allMerged = runBlocking {
+                        favoriteDao.getFavoriteChannels()
+                    }
+
+                    val mergedJsonArray = JSONArray()
+                    for (fav in allMerged) {
+                        mergedJsonArray.put(JSONObject().apply {
+                            put("url", fav.url)
+                            put("name", fav.name)
+                            put("logo", fav.logo)
+                            put("referer", fav.referer)
+                            put("userAgent", fav.userAgent)
+                            put("alternateSourcesJson", fav.alternateSourcesJson)
+                        })
+                    }
+
+                    val responseJson = JSONObject().apply {
+                        put("status", "OK")
+                        put("synced", allMerged.size)
+                        put("favorites", mergedJsonArray)
+                    }
+
+                    sendResponse(socket, 200, "OK", responseJson.toString())
                 }
 
                 else -> {
