@@ -208,6 +208,12 @@ class TvViewModel @Inject constructor(
         }
     }
 
+    fun syncFavorites(favoriteUrls: List<String>) {
+        viewModelScope.launch {
+            repository.syncFavorites(favoriteUrls)
+        }
+    }
+
     fun playChannel(channel: Channel?) {
         _uiState.update { it.copy(currentChannel = channel) }
         if (channel != null) {

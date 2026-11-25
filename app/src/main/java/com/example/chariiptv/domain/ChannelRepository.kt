@@ -80,6 +80,26 @@ class ChannelRepository @Inject constructor(
         return@withContext favEntities.map { it.toDomainChannel() }
     }
 
+    suspend fun syncFavorites(favoriteUrls: List<String>) = withContext(Dispatchers.IO) {
+        val currentFavs = favoriteDao.getFavoriteChannels().map { it.url }.toSet()
+        val missingUrls = favoriteUrls.filter { !currentFavs.contains(it) }
+        if (missingUrls.isNotEmpty()) {
+            val cached = cachedChannelDao.getChannelsByUrls(missingUrls)
+            for (ch in cached) {
+                favoriteDao.insertFavorite(
+                    FavoriteChannel(
+                        url = ch.url,
+                        name = ch.name,
+                        logo = ch.logo,
+                        userAgent = ch.userAgent,
+                        referer = ch.referer,
+                        alternateSourcesJson = ch.alternateSourcesJson
+                    )
+                )
+            }
+        }
+    }
+
     suspend fun getFavoriteChannels(urls: List<String>): List<Channel> = getFavoriteChannels()
 
     suspend fun getChannelsByCountry(countryCode: String, forceRefresh: Boolean = false): List<Channel> = withContext(Dispatchers.IO) {

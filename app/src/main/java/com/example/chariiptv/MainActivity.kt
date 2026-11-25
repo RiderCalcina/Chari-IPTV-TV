@@ -8,6 +8,14 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import javax.inject.Inject
+import com.example.chariiptv.remote.TvLanServer
+import com.example.chariiptv.remote.TvNsdBroadcaster
+import com.example.chariiptv.remote.LanRemoteEventBus
+import com.example.chariiptv.remote.LanRemoteEvent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -55,6 +63,7 @@ import com.example.chariiptv.presentation.components.*
 import com.example.chariiptv.theme.*
 import com.example.chariiptv.util.Constants
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -62,6 +71,10 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
 
     private val tvViewModel: TvViewModel by viewModels()
+
+    @Inject lateinit var tvLanServer: TvLanServer
+    @Inject lateinit var tvNsdBroadcaster: TvNsdBroadcaster
+    @Inject lateinit var lanEventBus: LanRemoteEventBus
 
     // Interceptor directo a nivel de actividad para eventos del control remoto en reproducción
     var playerKeyHandler: ((KeyEvent) -> Boolean)? = null
@@ -77,6 +90,19 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleIntent(intent)
+
+        // Inicializar Servidor LAN Micro-HTTP y difusión mDNS DNS-SD para control remoto
+        tvLanServer.currentChannelProvider = { tvViewModel.uiState.value.currentChannel }
+        tvLanServer.start()
+        tvNsdBroadcaster.start()
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                lanEventBus.events.collect { event ->
+                    handleLanRemoteEvent(event)
+                }
+            }
+        }
 
         setContent {
             TVDROIDTheme {
@@ -228,7 +254,46 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        tvLanServer.stop()
+        tvNsdBroadcaster.stop()
         tvViewModel.playChannel(null)
+    }
+
+    private fun handleLanRemoteEvent(event: LanRemoteEvent) {
+        when (event) {
+            is LanRemoteEvent.PlayChannel -> {
+                tvViewModel.playChannel(event.channel)
+            }
+            is LanRemoteEvent.SendKeyEvent -> {
+                lifecycleScope.launch(Dispatchers.Main) {
+                    val downTime = android.os.SystemClock.uptimeMillis()
+                    val actionDown = KeyEvent(downTime, downTime, KeyEvent.ACTION_DOWN, event.keyCode, 0)
+                    dispatchKeyEvent(actionDown)
+                    delay(50)
+                    val upTime = android.os.SystemClock.uptimeMillis()
+                    val actionUp = KeyEvent(downTime, upTime, KeyEvent.ACTION_UP, event.keyCode, 0)
+                    dispatchKeyEvent(actionUp)
+                }
+            }
+            is LanRemoteEvent.SetSearchQuery -> {
+                val query = event.query.trim().lowercase()
+                if (Constants.SUPPORTED_COUNTRIES.containsKey(query)) {
+                    tvViewModel.selectCountry(query)
+                } else {
+                    val currentChannels = tvViewModel.uiState.value.channels
+                    val match = currentChannels.find { it.name.lowercase().contains(query) }
+                    if (match != null) {
+                        tvViewModel.playChannel(match)
+                    }
+                }
+            }
+            is LanRemoteEvent.SyncFavorites -> {
+                tvViewModel.syncFavorites(event.favoriteUrls)
+            }
+            is LanRemoteEvent.StopPlayback -> {
+                tvViewModel.playChannel(null)
+            }
+        }
     }
 }
 
