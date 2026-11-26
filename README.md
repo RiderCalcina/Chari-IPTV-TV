@@ -5,9 +5,10 @@
 [![Compose TV](https://img.shields.io/badge/Jetpack%20Compose%20for%20TV-Material%203-purple.svg)](https://developer.android.com/jetpack/compose/tv)
 [![Version](https://img.shields.io/badge/Versi%C3%B3n-1.2-brightgreen.svg)]()
 [![LAN Server](https://img.shields.io/badge/LAN%20Micro--Server-Puerto%208990-orange.svg)]()
+[![Mobile Companion](https://img.shields.io/badge/Ecosistema-Mobile%20Companion-purple.svg)](https://github.com/RiderCalcina/Chari-IPTV-Cel)
 [![License](https://img.shields.io/badge/Licencia-Libre%20Acceso-orange.svg)]()
 
-**Chari-IPTV** es una aplicación nativa moderna de alto rendimiento desarrollada exclusivamente para Smart TVs y dispositivos **Android TV, Google TV y Fire TV Sticks**. Diseñada especialmente para disfrutar de televisión abierta en vivo y cine bajo demanda en español con una experiencia visual cinematográfica, fluida y totalmente adaptada al mando a distancia de la sala de estar y al ecosistema interconectado con [Chari-IPTV Cel](https://github.com/RiderCalcina/Chary-IPTV).
+**Chari-IPTV** es una aplicación nativa moderna de alto rendimiento desarrollada exclusivamente para Smart TVs y dispositivos **Android TV, Google TV y Fire TV Sticks**. Diseñada especialmente para disfrutar de televisión abierta en vivo y cine bajo demanda en español con una experiencia visual cinematográfica, fluida y totalmente adaptada al mando a distancia de la sala de estar y al ecosistema interconectado con [Chari-IPTV Cel (Edición Móvil)](https://github.com/RiderCalcina/Chari-IPTV-Cel).
 
 ---
 
@@ -29,9 +30,10 @@
 * 🚀 **Integración con la Pantalla de Inicio:** Fila nativa de canales recomendados en el launcher principal de Android TV para acceder a tus contenidos con un solo clic.
 * 🌐 **Servidor Micro-HTTP LAN & Descubrimiento mDNS (Novedad v1.2):**
   * Servidor HTTP local embebido que escucha en el puerto `8990`.
-  * Difusión automática mediante mDNS (`_chari-tv._tcp.`) que permite ser descubierta al instante por teléfonos con la app móvil.
+  * Difusión automática mediante mDNS (`_chari-tv._tcp.`) que permite ser descubierta al instante por teléfonos con [Chari-IPTV Cel](https://github.com/RiderCalcina/Chari-IPTV-Cel).
   * Protección Anti-SSRF estricta: solo acepta conexiones provenientes de subredes privadas locales (RFC 1918).
-  * Control remoto total desde el celular: cruceta virtual, volumen, teclado remoto y sincronización de favoritos en tiempo real.
+  * Control remoto total desde el celular: cruceta virtual, volumen, botones de navegación, teclado remoto (**Buscar en TV**) y sincronización bidireccional de favoritos en tiempo real.
+  * Sintonización remota optimizada: al recibir una señal enviada desde el celular, la Smart TV reproduce el stream directamente vía su propio ExoPlayer, liberando al móvil y apagando el reproductor/audio local en el teléfono.
 * 🔒 **100% Libre y Privada:** No requiere registro, no pide inicio de sesión, no contiene publicidad intrusiva ni rastreadores.
 
 ---
@@ -51,24 +53,25 @@
 
 ## 📲 Ecosistema Interconectado con Chari-IPTV Cel
 
-Al utilizar conjuntamente **Chari-IPTV (TV)** y **Chari-IPTV Cel (Móvil)** en la misma red Wi-Fi:
+Al utilizar conjuntamente **Chari-IPTV (TV)** y **[Chari-IPTV Cel (Móvil)](https://github.com/RiderCalcina/Chari-IPTV-Cel)** en la misma red Wi-Fi:
 
-```
+```text
 ┌─────────────────────────────────┐               ┌─────────────────────────────────┐
 │     Chari-IPTV Cel (Móvil)      │               │     Chari-IPTV (Smart TV)       │
 │                                 │               │                                 │
-│  - Descubrimiento mDNS automático ───────────────▶  - Broadcaster mDNS (_chari-tv)│
+│  - Descubrimiento mDNS auto     ───────────────▶  - Broadcaster mDNS (_chari-tv)│
 │  - Botón "Enviar a TV"          │  REST / HTTP  │  - Micro-HTTP Server (Port 8990)│
 │  - Cruceta D-Pad táctil         │───────────────▶  - Inyector de eventos D-Pad    │
-│  - Teclado móvil para búsquedas │  (Subred LAN) │  - Sintonización directa ExoPlay│
-│  - Sincronización de Favoritos  │               │  - Base de datos Room TV        │
+│  - "Buscar en TV" (Teclado)     │  (Subred LAN) │  - Sintonización directa ExoPlay│
+│  - Sincronización Favoritos     │               │  - Base de datos Room TV        │
+│    (Bidireccional)              │               │                                 │
 └─────────────────────────────────┘               └─────────────────────────────────┘
 ```
 
-1. **Sintonización Instantánea:** Toca cualquier canal en el celular y presiona "Enviar a TV"; la tele sintoniza la señal de inmediato sin consumir batería del móvil.
+1. **Sintonización Instantánea:** Toca cualquier canal en el celular y presiona "Enviar a TV"; la tele sintoniza la señal de inmediato vía ExoPlayer nativo y el celular detiene su reproducción local y audio automáticamente.
 2. **Control Remoto Táctil:** Usa la cruceta circular en la pantalla de tu móvil si se te extravió el control de la tele o no tiene pilas.
-3. **Búsquedas Rápidas:** Escribe los nombres de los canales desde el teclado del celular en vez de navegar letra por letra en la pantalla grande.
-4. **Sincronización:** Traspasa tu lista de canales favoritos del celular a la TV con un solo botón.
+3. **Búsquedas Rápidas (Buscar en TV):** Escribe los nombres de los canales desde el teclado del celular en vez de navegar letra por letra en la pantalla grande.
+4. **Sincronización Bidireccional de Favoritos:** Fusiona e iguala la lista de canales favoritos entre el celular y la TV con un solo botón ("Sincronizar Favoritos").
 
 ---
 
@@ -93,10 +96,37 @@ adb install -r Chari-IPTV_1.2.apk
 
 ---
 
+## 📦 Compilación y Código Fuente
+
+### Requisitos
+* JDK 17
+* Android SDK 36 (Android 15 / 16 Preview)
+* Android Studio Ladybug / Koala o superior
+
+### Pasos de Compilación
+
+1. Clonar el repositorio:
+```bash
+git clone https://github.com/RiderCalcina/Chari-IPTV-TV.git
+cd Chari-IPTV-TV
+```
+
+2. Compilar el APK Release optimizado:
+```bash
+./gradlew :app:assembleRelease
+```
+
+3. El APK final se generará en:
+```text
+app/build/outputs/apk/release/Chari-IPTV_1.2.apk
+```
+
+---
+
 ## 📖 Documentación y Guías
 
-* 📘 **[Guía de Ayuda Completa y Manual de Usuario TV](file:///C:/xampp/htdocs/Chari-IPTV_TV/GUIA_AYUDA_USUARIO.md):** Manual detallado paso a paso sobre el funcionamiento de la aplicación en el televisor, controles avanzados, uso del servidor local y resolución de problemas comunes.
-* 📱 **[Repositorio Chari-IPTV Celular](https://github.com/RiderCalcina/Chary-IPTV):** Código fuente y documentación de la versión móvil complementaria.
+* 📘 **[Guía de Ayuda Completa y Manual de Usuario TV](GUIA_AYUDA_USUARIO.md):** Manual detallado paso a paso sobre el funcionamiento de la aplicación en el televisor, controles avanzados, uso del servidor local y resolución de problemas comunes.
+* 📱 **[Repositorio Chari-IPTV Celular](https://github.com/RiderCalcina/Chari-IPTV-Cel):** Código fuente, control remoto virtual y guía de la versión móvil complementaria.
 
 ---
 
