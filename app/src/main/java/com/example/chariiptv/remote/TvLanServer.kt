@@ -7,6 +7,7 @@ import com.example.chariiptv.data.local.FavoriteChannel
 import com.example.chariiptv.data.local.FavoriteDao
 import com.example.chariiptv.domain.Channel
 import com.example.chariiptv.domain.StreamSource
+import com.example.chariiptv.util.Constants
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
@@ -197,13 +198,13 @@ class TvLanServer @Inject constructor(
                             referer = chJson.optString("referer", ""),
                             userAgent = chJson.optString("userAgent", "")
                         )
-                        if (channel.url.isNotBlank()) {
+                        if (channel.url.isNotBlank() && !Constants.isTestOrDummyChannel(channel.name, channel.url)) {
                             eventBus.emit(LanRemoteEvent.PlayChannel(channel))
                             sendResponse(socket, 200, "OK", JSONObject().put("status", "OK").put("message", "Canal recibido").toString())
                             return
                         }
                     }
-                    sendResponse(socket, 400, "Bad Request", JSONObject().put("error", "Objeto channel inválido").toString())
+                    sendResponse(socket, 400, "Bad Request", JSONObject().put("error", "Objeto channel inválido o canal de prueba rechazado").toString())
                 }
 
                 "STOP" -> {
@@ -221,6 +222,16 @@ class TvLanServer @Inject constructor(
                     val favsArray = json.optJSONArray("favorites") ?: JSONArray()
                     val incomingUrls = ArrayList<String>()
 
+                    // Purgar cualquier canal de prueba residual en la base de datos
+                    runBlocking {
+                        val currentFavs = favoriteDao.getFavoriteChannels()
+                        for (f in currentFavs) {
+                            if (Constants.isTestOrDummyChannel(f.name, f.url)) {
+                                favoriteDao.deleteFavorite(f.url)
+                            }
+                        }
+                    }
+
                     for (i in 0 until favsArray.length()) {
                         val item = favsArray.optJSONObject(i)
                         if (item != null) {
@@ -230,7 +241,7 @@ class TvLanServer @Inject constructor(
                             val referer = item.optString("referer", "")
                             val userAgent = item.optString("userAgent", "")
                             val alternateSourcesJson = item.optString("alternateSourcesJson", "")
-                            if (url.isNotBlank()) {
+                            if (url.isNotBlank() && !Constants.isTestOrDummyChannel(name, url)) {
                                 incomingUrls.add(url)
                                 runBlocking {
                                     favoriteDao.insertFavorite(
@@ -247,7 +258,7 @@ class TvLanServer @Inject constructor(
                             }
                         } else {
                             val url = favsArray.optString(i, "")
-                            if (url.isNotBlank()) {
+                            if (url.isNotBlank() && !Constants.isTestOrDummyChannel("", url)) {
                                 incomingUrls.add(url)
                             }
                         }
@@ -257,9 +268,9 @@ class TvLanServer @Inject constructor(
                         eventBus.emit(LanRemoteEvent.SyncFavorites(incomingUrls))
                     }
 
-                    // Obtener la totalidad de favoritos mezclados de la TV para devolver al celular (Sincronización Bidireccional)
+                    // Obtener la totalidad de favoritos mezclados de la TV limpios para devolver al celular (Sincronización Bidireccional)
                     val allMerged = runBlocking {
-                        favoriteDao.getFavoriteChannels()
+                        favoriteDao.getFavoriteChannels().filter { !Constants.isTestOrDummyChannel(it.name, it.url) }
                     }
 
                     val mergedJsonArray = JSONArray()

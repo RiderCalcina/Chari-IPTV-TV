@@ -12,6 +12,7 @@ import androidx.tvprovider.media.tv.TvContractCompat
 import androidx.tvprovider.media.tv.WatchNextProgram
 import com.example.chariiptv.MainActivity
 import com.example.chariiptv.domain.Channel
+import com.example.chariiptv.util.Constants
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -28,7 +29,7 @@ object TvRecommendationManager {
      */
     suspend fun updateHomeScreenChannels(context: Context, channels: List<Channel>) = withContext(Dispatchers.IO) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return@withContext
-        val topChannels = channels.take(15)
+        val topChannels = channels.filter { !Constants.isTestOrDummyChannel(it.name, it.url) }.take(15)
         val signature = topChannels.joinToString("|") { it.url }
         if (signature.isEmpty() || signature == lastPublishedSignature) return@withContext
 

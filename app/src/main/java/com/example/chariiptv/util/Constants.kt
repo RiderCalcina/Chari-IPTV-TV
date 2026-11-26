@@ -96,6 +96,40 @@ object Constants {
         RegexOption.IGNORE_CASE
     )
 
+    fun isTestOrDummyChannel(name: String, url: String = ""): Boolean {
+        val lowerName = name.lowercase().trim()
+        val lowerUrl = url.lowercase().trim()
+
+        if (lowerUrl.contains("test.com") || lowerUrl.contains("example.com") ||
+            lowerUrl.contains("localhost") || lowerUrl.contains("127.0.0.1") ||
+            lowerUrl.startsWith("http://test") || lowerUrl.startsWith("https://test") ||
+            lowerUrl.contains("/stream-cel.m3u8") || lowerUrl.contains("dummy")
+        ) {
+            return true
+        }
+
+        val testTerms = listOf(
+            "canal de prueba", "canal de pruebas", "canal prueba",
+            "prueba celular", "prueba tv", "emisión en pruebas", "emision en pruebas",
+            "en pruebas", "canal test", "test channel", "señal de prueba",
+            "senal de prueba", "stream test", "[test]", "(test)",
+            "[prueba]", "(prueba)", "[pruebas]", "(pruebas)"
+        )
+        for (term in testTerms) {
+            if (lowerName.contains(term)) return true
+        }
+
+        if (lowerName == "prueba" || lowerName == "test" || lowerName == "pruebas") return true
+        if (lowerName.startsWith("test ") || lowerName.endsWith(" test") ||
+            lowerName.startsWith("prueba ") || lowerName.endsWith(" prueba") ||
+            lowerName.startsWith("pruebas ") || lowerName.endsWith(" pruebas")
+        ) {
+            return true
+        }
+
+        return false
+    }
+
     fun isPanRegionalThematicChannel(name: String, url: String = ""): Boolean {
         val lowerName = name.lowercase()
 
@@ -114,6 +148,9 @@ object Constants {
     fun isForeignOrBlocked(name: String, url: String = ""): Boolean {
         val lowerName = name.lowercase()
         val lowerUrl = url.lowercase()
+
+        // Excluir canales de prueba o residuos de testing
+        if (isTestOrDummyChannel(name, url)) return true
 
         // Excluir canales explícitamente geobloqueados o redes de intranet privadas / servidores caídos
         if (lowerUrl.contains("bantel-cdn1.iptvperu.tv")) return true

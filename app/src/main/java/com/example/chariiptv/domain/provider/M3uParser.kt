@@ -66,7 +66,7 @@ object M3uParser {
                 val (cleanUrl, pipeUa, pipeRef) = splitPipeHeaders(line)
                 val finalUa = pipeUa.ifBlank { currentUserAgent }
                 val finalRef = pipeRef.ifBlank { currentReferer }
-                if (cleanUrl.isNotBlank()) {
+                if (cleanUrl.isNotBlank() && !Constants.isTestOrDummyChannel(currentName, cleanUrl)) {
                     list.add(
                         Channel(
                             name = currentName,
