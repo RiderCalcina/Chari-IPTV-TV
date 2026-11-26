@@ -12,12 +12,14 @@ class M3uParserTest {
     fun parse_extractsExtVlcOptAndInlineHeaders() {
         val sample = """
             #EXTM3U
-            #EXTINF:-1 tvg-id="SampleSports.pe@SD" tvg-logo="https://example.com/logo.png" http-referrer="https://inline.example/" group-title="Sports",Sample Sports (1080p)
-            #EXTVLCOPT:http-referrer=https://vlc.example/
+            #EXTINF:-1 tvg-id="SampleSports.pe@SD" tvg-logo="https://cdn.validstream.tv/logo.png" http-referrer="https://inline.validstream.tv/" group-title="Sports",Sample Sports (1080p)
+            #EXTVLCOPT:http-referrer=https://vlc.validstream.tv/
             #EXTVLCOPT:http-user-agent=CustomAgent/1.0
-            https://cdn.example.com/live/index.m3u8
+            https://cdn.validstream.tv/live/index.m3u8
             #EXTINF:-1 tvg-id="PipeChannel.es@SD" group-title="General",Pipe Channel
-            https://cdn2.example.com/stream.m3u8|User-Agent=PipeUA/2.0&Referer=https://pipe.example/
+            https://cdn2.validstream.tv/stream.m3u8|User-Agent=PipeUA/2.0&Referer=https://pipe.validstream.tv/
+            #EXTINF:-1 group-title="General",Canal de prueba
+            https://test.com/stream-cel.m3u8
         """.trimIndent()
 
         val channels = M3uParser.parse(sample)
@@ -25,14 +27,14 @@ class M3uParserTest {
 
         val first = channels[0]
         assertEquals("Sample Sports (1080p)", first.name)
-        assertEquals("https://cdn.example.com/live/index.m3u8", first.url)
-        assertEquals("https://vlc.example/", first.referer)
+        assertEquals("https://cdn.validstream.tv/live/index.m3u8", first.url)
+        assertEquals("https://vlc.validstream.tv/", first.referer)
         assertEquals("CustomAgent/1.0", first.userAgent)
 
         val second = channels[1]
-        assertEquals("https://cdn2.example.com/stream.m3u8", second.url)
+        assertEquals("https://cdn2.validstream.tv/stream.m3u8", second.url)
         assertEquals("PipeUA/2.0", second.userAgent)
-        assertEquals("https://pipe.example/", second.referer)
+        assertEquals("https://pipe.validstream.tv/", second.referer)
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.example.chariiptv
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
@@ -82,6 +83,7 @@ class MainActivity : ComponentActivity() {
     // Interceptor directo a nivel de actividad para eventos del control remoto en reproducción
     var playerKeyHandler: ((KeyEvent) -> Boolean)? = null
 
+    @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (playerKeyHandler?.invoke(event) == true) {
             return true

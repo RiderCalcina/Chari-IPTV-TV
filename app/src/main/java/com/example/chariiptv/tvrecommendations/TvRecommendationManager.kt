@@ -1,5 +1,6 @@
 package com.example.chariiptv.tvrecommendations
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -16,6 +17,7 @@ import com.example.chariiptv.util.Constants
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+@SuppressLint("RestrictedApi")
 object TvRecommendationManager {
     private const val TAG = "TvRecommendationMgr"
     private const val CHANNEL_KEY = "chari_iptv_destacados"

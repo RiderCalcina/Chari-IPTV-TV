@@ -53,7 +53,7 @@ class TvLanServer @Inject constructor(
 
     var currentChannelProvider: (() -> Channel?)? = null
 
-    private val workerExecutor = Executors.newCachedThreadPool { runnable ->
+    private val workerExecutor = Executors.newFixedThreadPool(8) { runnable ->
         Thread(runnable, "tv-lan-worker").apply { isDaemon = true }
     }
 

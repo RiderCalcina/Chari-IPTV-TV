@@ -1,6 +1,8 @@
 package com.example.chariiptv.player
 
+import androidx.annotation.OptIn
 import androidx.media3.common.C
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
@@ -12,6 +14,7 @@ import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
  * - Ante microcortes de red o jitter de segmentos HLS, reintenta de forma acotada
  *   sin superar el watchdog del reproductor.
  */
+@OptIn(UnstableApi::class)
 class IptvLoadErrorPolicy(
     private val maxRetries: Int = 6
 ) : DefaultLoadErrorHandlingPolicy(maxRetries) {
